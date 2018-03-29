@@ -75,13 +75,21 @@ class DEMO_APP
 	// TODO: PART 3 STEP 2b
 	struct SEND_TO_VRAM
 	{
+		DirectX::XMFLOAT4X4 worldMatrix;
 		DirectX::XMFLOAT4 constantColor;
-		DirectX::XMFLOAT2 constantOffset;
-		DirectX::XMFLOAT2 padding;
+		//DirectX::XMFLOAT2 constantOffset;
+		//DirectX::XMFLOAT2 padding;
+	};
+
+	struct SCENE_TO_SEND
+	{
+		DirectX::XMFLOAT4X4 viewMatrix;
+		DirectX::XMFLOAT4X4 projectionMatrix;
 	};
 
 	// TODO: PART 3 STEP 4a
 	SEND_TO_VRAM toShader;
+	SCENE_TO_SEND toSceneShader;
 
 	bool right = true;
 	bool left = false;
@@ -390,7 +398,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	// TODO: PART 2 STEP 8a
 	vLayout =
 	{
-		"POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0
+		"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0
 	};
 
 	// TODO: PART 2 STEP 8b
@@ -405,7 +413,12 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	device->CreateBuffer(&cBufferDesc, NULL, &cBuffer);
 
 	// TODO: PART 3 STEP 4b
-	toShader.constantOffset = { 0, 0 };
+	//toShader.constantOffset = { 0, 0 };
+	toShader.worldMatrix = DirectX::XMMatrixTranslation(0, 0.25f, 0);
+	toSceneShader.viewMatrix = DirectX::XMLoadFloat4x4(&toSceneShader.viewMatrix);
+	toSceneShader.viewMatrix = DirectX::XMMatrixTranslation(0, 0, -1.0f);
+	toSceneShader.viewMatrix = DirectX::XMMatrixInverse(nullptr, toSceneShader.viewMatrix);
+
 	toShader.constantColor = { 1.0f, 1.0f, 0.0f, 1.0f };
 
 }
@@ -426,7 +439,7 @@ bool DEMO_APP::Run()
 	
 	// TODO: PART 4 STEP 5
 
-	if (toShader.constantOffset.x >= 1.0f)
+	/*if (toShader.constantOffset.x >= 1.0f)
 	{
 		right = false;
 		left = true;
@@ -456,8 +469,8 @@ bool DEMO_APP::Run()
 	if (top)
 		toShader.constantOffset.y += velocityVector.pos.y * float(time.Delta());
 	else if (bottom)
-		toShader.constantOffset.y -= velocityVector.pos.y * float(time.Delta());
-
+		toShader.constantOffset.y -= velocityVector.pos.y * float(time.Delta());*/
+	
 	// END PART 4
 
 	// TODO: PART 1 STEP 7a
@@ -473,8 +486,8 @@ bool DEMO_APP::Run()
 
 	// TODO: PART 5 STEP 4
 	toGridShader.constantColor = { 0.0f, 0.0f, 0.0f, 1.0f };
-	toGridShader.constantOffset = { 0,0 };
-	toGridShader.padding = { 0.0f, 0.0f };
+	//toGridShader.constantOffset = { 0,0 };
+	//toGridShader.padding = { 0.0f, 0.0f };
 
 	// TODO: PART 5 STEP 5
 	D3D11_MAPPED_SUBRESOURCE resource2;
