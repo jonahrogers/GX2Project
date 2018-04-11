@@ -56,8 +56,6 @@ class DEMO_APP
 	unsigned int vertCount;
 	ID3D11InputLayout* inputLayout;
 
-	ID3D11Buffer* indexBuffer;
-
 	//D3D11_INPUT_ELEMENT_DESC vLayout[];
 
 		// BEGIN PART 5
@@ -74,13 +72,6 @@ class DEMO_APP
 	ID3D11Buffer* cBuffer;
 	D3D11_BUFFER_DESC cBufferDesc = {};
 	XTime time;
-	float timer = 0.0;
-	float cameraTimer = 0.0;
-
-	DirectX::XMMATRIX worldMatrix1;
-	DirectX::XMMATRIX worldMatrix2;
-	DirectX::XMMATRIX viewMatrix;
-	DirectX::XMMATRIX projectionMatrix;
 
 	// TODO: PART 3 STEP 2b
 	struct SEND_TO_VRAM
@@ -89,7 +80,7 @@ class DEMO_APP
 		DirectX::XMMATRIX viewMatrix;
 		DirectX::XMMATRIX projectionMatrix;
 		DirectX::XMFLOAT4 light;
-		//DirectX::XMFLOAT4 constantColor;
+		DirectX::XMFLOAT4 constantColor;
 
 		//DirectX::XMFLOAT2 constantOffset;
 		//DirectX::XMFLOAT2 padding;
@@ -112,6 +103,11 @@ class DEMO_APP
 	// TODO: PART 3 STEP 4a
 	SEND_TO_VRAM toShader;
 	SCENE_TO_SEND toSceneShader;
+
+	bool right = true;
+	bool left = false;
+	bool top = true;
+	bool bottom = false;
 
 	SEND_TO_VRAM toGridShader;
 
@@ -215,7 +211,9 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 	// TODO: PART 2 STEP 3a
 	//SIMPLE_VERTEX circleVerts[361];
-	SIMPLE_VERTEX cubeVerts[8];
+	SIMPLE_VERTEX circleVerts[8];
+
+	SIMPLE_VERTEX triangleVerts[36];
 
 	/*for (unsigned int i = 0; i <= 360; ++i)
 	{
@@ -232,69 +230,88 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 #if 1
 	//Bottom Left, -z
-	cubeVerts[0].pos.x = -0.25f;
-	cubeVerts[0].pos.y = -0.25f;
-	cubeVerts[0].pos.z = -0.25f;
-	cubeVerts[0].pos.w = 1;
-	cubeVerts[0].color = { 0.0f, 1.0f, 0.0f, 1.0f };
+	circleVerts[0].pos.x = -0.25f;
+	circleVerts[0].pos.y = -0.25f;
+	circleVerts[0].pos.z = -0.25f;
+	circleVerts[0].pos.w = 1;
 	//Bottom Left, +z
-	cubeVerts[1].pos.x = -0.25f;
-	cubeVerts[1].pos.y = -0.25f;
-	cubeVerts[1].pos.z = 0.25f;
-	cubeVerts[1].pos.w = 1;
-	cubeVerts[1].color = { 1.0f, 0.0f, 1.0f, 1.0f };
+	circleVerts[1].pos.x = -0.25f;
+	circleVerts[1].pos.y = -0.25f;
+	circleVerts[1].pos.z = 0.25f;
+	circleVerts[1].pos.w = 1;
 	//Bottom Right, +z
-	cubeVerts[2].pos.x = 0.25f;
-	cubeVerts[2].pos.y = -0.25f;
-	cubeVerts[2].pos.z = 0.25f;
-	cubeVerts[2].pos.w = 1;
-	cubeVerts[2].color = { 1.0f, 1.0f, 0.0f, 1.0f };
+	circleVerts[2].pos.x = 0.25f;
+	circleVerts[2].pos.y = -0.25f;
+	circleVerts[2].pos.z = 0.25f;
+	circleVerts[2].pos.w = 1;
 	//Bottom Right, -z
-	cubeVerts[3].pos.x = 0.25f;
-	cubeVerts[3].pos.y = -0.25f;
-	cubeVerts[3].pos.z = -0.25f;
-	cubeVerts[3].pos.w = 1;
-	cubeVerts[3].color = { 0.0f, 0.0f, 1.0f, 1.0f };
+	circleVerts[3].pos.x = 0.25f;
+	circleVerts[3].pos.y = -0.25f;
+	circleVerts[3].pos.z = -0.25f;
+	circleVerts[3].pos.w = 1;
 	//Top Left, -z
-	cubeVerts[4].pos.x = -0.25f;
-	cubeVerts[4].pos.y = 0.25f;
-	cubeVerts[4].pos.z = -0.25f;
-	cubeVerts[4].pos.w = 1;
-	cubeVerts[4].color = { 1.0f, 0.0f, 0.0f, 1.0f };
+	circleVerts[4].pos.x = -0.25f;
+	circleVerts[4].pos.y = 0.25f;
+	circleVerts[4].pos.z = -0.25f;
+	circleVerts[4].pos.w = 1;
 	//Top Left, +z
-	cubeVerts[5].pos.x = -0.25f;
-	cubeVerts[5].pos.y = 0.25f;
-	cubeVerts[5].pos.z = 0.25f;
-	cubeVerts[5].pos.w = 1;
-	cubeVerts[5].color = { 1.0f, 1.0f, 1.0f, 1.0f };
+	circleVerts[5].pos.x = -0.25f;
+	circleVerts[5].pos.y = 0.25f;
+	circleVerts[5].pos.z = 0.25f;
+	circleVerts[5].pos.w = 1;
 	//Top Right, +z
-	cubeVerts[6].pos.x = 0.25f;
-	cubeVerts[6].pos.y = 0.25f;
-	cubeVerts[6].pos.z = 0.25f;
-	cubeVerts[6].pos.w = 1;
-	cubeVerts[6].color = { 0.0f, 1.0f, 1.0f, 1.0f };
+	circleVerts[6].pos.x = 0.25f;
+	circleVerts[6].pos.y = 0.25f;
+	circleVerts[6].pos.z = 0.25f;
+	circleVerts[6].pos.w = 1;
 	//Top Right, -z
-	cubeVerts[7].pos.x = 0.25f;
-	cubeVerts[7].pos.y = 0.25f;
-	cubeVerts[7].pos.z = -0.25f;
-	cubeVerts[7].pos.w = 1;
-	cubeVerts[7].color = { 0.0f, 0.0f, 0.0f, 1.0f };
+	circleVerts[7].pos.x = 0.25f;
+	circleVerts[7].pos.y = 0.25f;
+	circleVerts[7].pos.z = -0.25f;
+	circleVerts[7].pos.w = 1;
 
-	short triangleVerts[] = {
 	//Front Face
-		0,4,3, 4,7,3,
+	triangleVerts[0] = circleVerts[0];
+	triangleVerts[1] = circleVerts[4];
+	triangleVerts[2] = circleVerts[3];
+	triangleVerts[3] = circleVerts[4];
+	triangleVerts[4] = circleVerts[7];
+	triangleVerts[5] = circleVerts[3];
 	//Right Face
-		3,7,2, 7,6,2,
+	triangleVerts[6] = circleVerts[3];
+	triangleVerts[7] = circleVerts[7];
+	triangleVerts[8] = circleVerts[2];
+	triangleVerts[9] = circleVerts[7];
+	triangleVerts[10] = circleVerts[6];
+	triangleVerts[11] = circleVerts[2];
 	//Back Face
-		2,6,1, 6,5,1,
+	triangleVerts[12] = circleVerts[2];
+	triangleVerts[13] = circleVerts[6];
+	triangleVerts[14] = circleVerts[1];
+	triangleVerts[15] = circleVerts[6];
+	triangleVerts[16] = circleVerts[5];
+	triangleVerts[17] = circleVerts[1];
 	//Left Face
-		1,5,0, 5,4,0,
+	triangleVerts[18] = circleVerts[1];
+	triangleVerts[19] = circleVerts[5];
+	triangleVerts[20] = circleVerts[0];
+	triangleVerts[21] = circleVerts[5];
+	triangleVerts[22] = circleVerts[4];
+	triangleVerts[23] = circleVerts[0];
 	//Top Face
-		4,5,7, 5,6,7,
+	triangleVerts[24] = circleVerts[4];
+	triangleVerts[25] = circleVerts[5];
+	triangleVerts[26] = circleVerts[7];
+	triangleVerts[27] = circleVerts[5];
+	triangleVerts[28] = circleVerts[6];
+	triangleVerts[29] = circleVerts[7];
 	//Bottom Face
-		1,0,2, 0,3,2
-	};
-	
+	triangleVerts[30] = circleVerts[0];
+	triangleVerts[31] = circleVerts[1];
+	triangleVerts[32] = circleVerts[3];
+	triangleVerts[33] = circleVerts[1];
+	triangleVerts[34] = circleVerts[2];
+	triangleVerts[35] = circleVerts[3];
 #endif
 
 	// BEGIN PART 4
@@ -307,33 +324,25 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 	// TODO: PART 2 STEP 3b
 	D3D11_BUFFER_DESC bufferDesc = {};
+
 	bufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
 	bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	bufferDesc.CPUAccessFlags = NULL;
 	bufferDesc.ByteWidth = sizeof(SIMPLE_VERTEX) * 36;
 
 	// TODO: PART 2 STEP 3c
-	D3D11_SUBRESOURCE_DATA bufferResource = {};
-	bufferResource.pSysMem = cubeVerts;
+	D3D11_SUBRESOURCE_DATA bufferResource;
 
-	device->CreateBuffer(&bufferDesc, &bufferResource, &buffer);
-
-	D3D11_BUFFER_DESC indexDesc = {};
-	indexDesc.Usage = D3D11_USAGE_IMMUTABLE;
-	indexDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
-	indexDesc.CPUAccessFlags = NULL;
-	indexDesc.ByteWidth = sizeof(short) * 36;
-
-	// TODO: PART 2 STEP 3d
 	bufferResource.pSysMem = triangleVerts;
 
-	device->CreateBuffer(&indexDesc, &bufferResource, &indexBuffer);
+	// TODO: PART 2 STEP 3d
+	device->CreateBuffer(&bufferDesc, &bufferResource, &buffer);
 
 	// TODO: PART 5 STEP 2a
 	SIMPLE_VERTEX gridVerts[1200];
 
 	// TODO: PART 5 STEP 2b
-	/*DirectX::XMFLOAT2 vert1 = { -0.9f, 1.0f };
+	DirectX::XMFLOAT2 vert1 = { -0.9f, 1.0f };
 	DirectX::XMFLOAT2 vert2 = { 0, 0 };
 	DirectX::XMFLOAT2 vert3 = { 0, 0 };
 	DirectX::XMFLOAT2 vert4 = { 0, 0 };
@@ -400,7 +409,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 			vert1.x += 0.2;
 		}
-	}*/
+	}
 	
 	// TODO: PART 5 STEP 3
 	D3D11_BUFFER_DESC gridBufferDesc = {};
@@ -437,7 +446,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 
 	// TODO: PART 2 STEP 8b
-	device->CreateInputLayout(vLayout, ARRAYSIZE(vLayout), Trivial_VS, sizeof(Trivial_VS), &inputLayout);
+	device->CreateInputLayout(&vLayout, ARRAYSIZE(vlayout) , Trivial_VS, sizeof(Trivial_VS), &inputLayout);
 
 	// TODO: PART 3 STEP 3
 	cBufferDesc.Usage = D3D11_USAGE_DYNAMIC;
@@ -448,22 +457,19 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	device->CreateBuffer(&cBufferDesc, NULL, &cBuffer);
 
 	// TODO: PART 3 STEP 4b
-	worldMatrix1 = DirectX::XMMatrixIdentity();
-	worldMatrix2 = DirectX::XMMatrixIdentity();
-	viewMatrix = DirectX::XMMatrixRotationX(-18.0f);
-	viewMatrix = DirectX::XMMatrixMultiply(DirectX::XMMatrixTranslation(0, 0, -1.0f), viewMatrix);
-	viewMatrix = DirectX::XMMatrixInverse(nullptr, viewMatrix);
-	projectionMatrix = DirectX::XMMatrixPerspectiveFovLH(90, BACKBUFFER_WIDTH / BACKBUFFER_HEIGHT, 0.1f, 10.0f);
 	//toShader.constantOffset = { 0, 0 };
-	//toShader.worldMatrix = DirectX::XMMatrixTranslation(0, 0.25f, 0);
-	//toShader.viewMatrix = DirectX::XMMatrixRotationX(-18.0f);
-	//toShader.viewMatrix = DirectX::XMMatrixMultiply(DirectX::XMMatrixTranslation(0, 0, -1.0f), toShader.viewMatrix);
-	//toShader.viewMatrix = DirectX::XMMatrixInverse(nullptr, toShader.viewMatrix);
-	//toShader.projectionMatrix = DirectX::XMMatrixPerspectiveFovLH(90, 500 / 500, 0.1f, 10.0f);
+	toShader.worldMatrix = DirectX::XMMatrixTranslation(0, 0.25f, 0);
+	toShader.viewMatrix = DirectX::XMMatrixRotationX(-18.0f);
+	toShader.viewMatrix = DirectX::XMMatrixMultiply(DirectX::XMMatrixTranslation(0, 0, -1.0f), toShader.viewMatrix);
+	toShader.viewMatrix = DirectX::XMMatrixInverse(nullptr, toShader.viewMatrix);
+	toShader.projectionMatrix = DirectX::XMMatrixPerspectiveFovLH(90, 500 / 500, 0.1f, 10.0f);
 	
 	//toShader.light = { -0.333f, -0.333f, 0.333f, 0 };
-	
-	//toShader.constantColor = { 1.0f, 1.0f, 0.0f, 1.0f };
+	//toSceneShader.viewMatrix = DirectX::XMLoadFloat4x4(&toSceneShader.viewMatrix);
+	//toSceneShader.viewMatrix = DirectX::XMMatrixTranslation(0, 0, -1.0f);
+	//toSceneShader.viewMatrix = DirectX::XMMatrixInverse(nullptr, toSceneShader.viewMatrix);
+
+	toShader.constantColor = { 1.0f, 1.0f, 0.0f, 1.0f };
 
 }
 
@@ -477,64 +483,44 @@ bool DEMO_APP::Run()
 	time.Signal();
 
 	// TODO: PART 4 STEP 3
+	SIMPLE_VERTEX velocityVector;
+	velocityVector.pos.x = 1.0f;
+	velocityVector.pos.y = 0.5f;
 	
 	// TODO: PART 4 STEP 5
 
-	if (cameraTimer >= 0.05f)
+	/*if (toShader.constantOffset.x >= 1.0f)
 	{
-		if (GetAsyncKeyState(0x57)) // 'W'
-		{
-			DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(0.0f, 0.0f, -0.1f);
-
-			viewMatrix = DirectX::XMMatrixMultiply(tempM, viewMatrix);
-
-			cameraTimer = 0.0f;
-		}
-		if (GetAsyncKeyState(0x41)) // 'A'
-		{
-			DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(0.1f, 0.0f, 0.0f);
-
-			viewMatrix = DirectX::XMMatrixMultiply(tempM, viewMatrix);
-
-			cameraTimer = 0.0f;
-		}
-		if (GetAsyncKeyState(0x53)) // 'S'
-		{
-			DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(0.0f, 0.0f, 0.1f);
-
-			viewMatrix = DirectX::XMMatrixMultiply(tempM, viewMatrix);
-
-			cameraTimer = 0.0f;
-		}
-		if (GetAsyncKeyState(0x44)) // 'D'
-		{
-			DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(-0.1f, 0.0f, 0.0f);
-
-			viewMatrix = DirectX::XMMatrixMultiply(tempM, viewMatrix);
-
-			cameraTimer = 0.0f;
-		}
-		if (GetAsyncKeyState(VK_UP)) // UP ARROW KEY
-		{
-			DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(0.0f, -0.1f, 0.0f);
-
-			viewMatrix = DirectX::XMMatrixMultiply(tempM, viewMatrix);
-
-			cameraTimer = 0.0f;
-		}
-		if (GetAsyncKeyState(VK_DOWN)) // DOWN ARROW KEY
-		{
-			DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(0.0f, 0.1f, 0.0f);
-
-			viewMatrix = DirectX::XMMatrixMultiply(tempM, viewMatrix);
-
-			cameraTimer = 0.0f;
-		}
+		right = false;
+		left = true;
 	}
-	else
+	if (toShader.constantOffset.x <= -1.0f)
 	{
-		cameraTimer += time.SmoothDelta();
+		left = false;
+		right = true;
 	}
+
+	if (toShader.constantOffset.y >= 1.0f)
+	{
+		top = false;
+		bottom = true;
+	}
+	if (toShader.constantOffset.y <= -1.0f)
+	{
+		bottom = false;
+		top = true;
+	}
+
+	if (right)
+		toShader.constantOffset.x += velocityVector.pos.x * float(time.Delta());
+	else if (left)
+		toShader.constantOffset.x -= velocityVector.pos.x * float(time.Delta());
+
+	if (top)
+		toShader.constantOffset.y += velocityVector.pos.y * float(time.Delta());
+	else if (bottom)
+		toShader.constantOffset.y -= velocityVector.pos.y * float(time.Delta());*/
+	
 	// END PART 4
 
 	// TODO: PART 1 STEP 7a
@@ -547,10 +533,10 @@ bool DEMO_APP::Run()
 	FLOAT arr[4] = { 0.0f, 0.0f, 0.7f, 1.0f };
 
 	context->ClearRenderTargetView(rtv, arr);
-	context->ClearDepthStencilView(dsv, D3D11_CLEAR_DEPTH, 1.0f, 1.0f);
+	context->ClearDepthStencilView(dsv, D3D11_CLEAR_DEPTH, 1.0, 0.0f);
 
 	// TODO: PART 5 STEP 4
-	//toGridShader.constantColor = { 0.0f, 0.0f, 0.0f, 1.0f };
+	toGridShader.constantColor = { 0.0f, 0.0f, 0.0f, 1.0f };
 	//toGridShader.constantOffset = { 0,0 };
 	//toGridShader.padding = { 0.0f, 0.0f };
 
@@ -578,13 +564,6 @@ bool DEMO_APP::Run()
 	// END PART 5
 
 	// TODO: PART 3 STEP 5
-	worldMatrix1 = DirectX::XMMatrixMultiply(DirectX::XMMatrixRotationY(-timer), DirectX::XMMatrixTranslation(0.0f, 0.25f, 0.0f));
-	toShader.worldMatrix = worldMatrix1;
-	toShader.viewMatrix = viewMatrix;
-	toShader.projectionMatrix = projectionMatrix;
-
-	timer += time.SmoothDelta();
-
 	D3D11_MAPPED_SUBRESOURCE ms;
 	context->Map(cBuffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
 	memcpy(ms.pData, &toShader, sizeof(toShader));
@@ -597,7 +576,6 @@ bool DEMO_APP::Run()
 	UINT stride = sizeof(SIMPLE_VERTEX);
 	UINT offset = 0;
 	context->IASetVertexBuffers(0, 1, &buffer, &stride, &offset);
-	context->IASetIndexBuffer(indexBuffer, DXGI_FORMAT_R16_UINT, offset);
 
 	// TODO: PART 2 STEP 9b
 	context->PSSetShader(ps, 0, 0);
@@ -609,19 +587,8 @@ bool DEMO_APP::Run()
 	context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	// TODO: PART 2 STEP 10
-	context->DrawIndexed(36, 0, 0);
+	context->Draw(36, 0);
 
-	worldMatrix2 = DirectX::XMMatrixMultiply(DirectX::XMMatrixTranslation(2.0f, 0.25f, 0.0f), DirectX::XMMatrixRotationY(timer * 0.8f));
-	worldMatrix2 = DirectX::XMMatrixMultiply(DirectX::XMMatrixMultiply(DirectX::XMMatrixMultiply(DirectX::XMMatrixRotationX(timer * 0.2f), DirectX::XMMatrixRotationY(timer * 1.5f)), DirectX::XMMatrixRotationZ(timer * 0.8f)), worldMatrix2);
-	worldMatrix2 = DirectX::XMMatrixMultiply(worldMatrix2, DirectX::XMMatrixScaling(0.5f, 0.5f, 0.5f));
-	toShader.worldMatrix = worldMatrix2;
-
-	D3D11_MAPPED_SUBRESOURCE ms2;
-	context->Map(cBuffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms2);
-	memcpy(ms2.pData, &toShader, sizeof(toShader));
-	context->Unmap(cBuffer, NULL);
-
-	context->DrawIndexed(36, 0, 0);
 	// END PART 2
 
 	// TODO: PART 1 STEP 8
