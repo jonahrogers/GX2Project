@@ -4,6 +4,7 @@ struct INPUT_VERTEX
 {
 	float4 coordinate : POSITION;
 	float4 color : COLOR;
+	//float2 texCoords : TEXCOORD0;
 	//float3 normal : NORMAL;
 };
 
@@ -11,6 +12,7 @@ struct OUTPUT_VERTEX
 {
 	float4 colorOut : COLOR;
 	float4 projectedCoordinate : SV_POSITION;
+	//float2 texCoordsOut : TEXCOORD1;
 	//float3 normal : NORMAL;
 };
 

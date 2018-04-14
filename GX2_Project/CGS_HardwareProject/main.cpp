@@ -17,11 +17,15 @@
 #include <ctime>
 #include "XTime.h"
 
+#include "greendragon.h"
+#define DRAGON greendragon_pixels
+
 using namespace std;
 
 // BEGIN PART 1
 // TODO: PART 1 STEP 1a
 #include <d3d11.h>
+#pragma comment(lib, "d3d11");
 
 // TODO: PART 1 STEP 1b
 #include <DirectXMath.h>
@@ -80,6 +84,7 @@ class DEMO_APP
 	DirectX::XMMATRIX worldMatrix1;
 	DirectX::XMMATRIX worldMatrix2;
 	DirectX::XMMATRIX viewMatrix;
+	DirectX::XMMATRIX cameraMatrix;
 	DirectX::XMMATRIX projectionMatrix;
 
 	// TODO: PART 3 STEP 2b
@@ -121,6 +126,7 @@ public:
 	struct SIMPLE_VERTEX
 	{
 		DirectX::XMFLOAT4 pos;
+		//DirectX::XMFLOAT2 texCoords;
 		DirectX::XMFLOAT4 color;
 	};
 
@@ -214,21 +220,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	viewport.TopLeftY = 0;
 
 	// TODO: PART 2 STEP 3a
-	//SIMPLE_VERTEX circleVerts[361];
 	SIMPLE_VERTEX cubeVerts[8];
-
-	/*for (unsigned int i = 0; i <= 360; ++i)
-	{
-		if (i == 360)
-		{
-			circleVerts[i] = circleVerts[0];
-		}
-		else
-		{
-		circleVerts[i].pos.x = sin(DirectX::XM_PI / 180.0f * i);
-		circleVerts[i].pos.y = cos(DirectX::XM_PI / 180.0f * i);
-		}
-	}*/
 
 #if 1
 	//Bottom Left, -z
@@ -329,96 +321,33 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 	device->CreateBuffer(&indexDesc, &bufferResource, &indexBuffer);
 
+	D3D11_TEXTURE2D_DESC texDesc;
+	D3D11_SUBRESOURCE_DATA texSrc[greendragon_numlevels];
+	ZeroMemory(&texDesc, sizeof(texDesc));
+
+	for (int i = 0; i < greendragon_numlevels; ++i)
+	{
+		ZeroMemory(&texSrc[i], sizeof(texSrc[i]));
+		texSrc[i].pSysMem = &DRAGON[greendragon_leveloffsets[i]];
+		texSrc[i].SysMemPitch = (greendragon_width >> i) * sizeof(unsigned int);
+	}
+
+	texDesc.ArraySize = 1;
+	texDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+	texDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
+	texDesc.Height = greendragon_height;
+	texDesc.Width = greendragon_width;
+	texDesc.MipLevels = greendragon_numlevels;
+	texDesc.Usage = D3D11_USAGE_IMMUTABLE;
+	texDesc.SampleDesc.Count = 1;
+
+	HRESULT result = device->CreateTexture2D(&texDesc, texSrc, &diffuseTexture);
+
 	// TODO: PART 5 STEP 2a
-	SIMPLE_VERTEX gridVerts[1200];
 
 	// TODO: PART 5 STEP 2b
-	/*DirectX::XMFLOAT2 vert1 = { -0.9f, 1.0f };
-	DirectX::XMFLOAT2 vert2 = { 0, 0 };
-	DirectX::XMFLOAT2 vert3 = { 0, 0 };
-	DirectX::XMFLOAT2 vert4 = { 0, 0 };
-	DirectX::XMFLOAT2 vert5 = { 0, 0 };
-	DirectX::XMFLOAT2 vert6 = { 0, 0 };
-	bool isEven = false;
-
-	for (unsigned int i = 0; i < 20; i++)
-	{
-		for (unsigned int j = 0; j < 10; ++j)
-		{
-			if (isEven == false && vert1.x > 0.9)
-			{
-				vert1.x = -1.0;
-				vert1.y -= 0.1;
-
-				isEven = true;
-			}
-			else if (isEven == true && vert1.x > 0.8)
-			{
-				vert1.x = -0.9;
-				vert1.y -= 0.1;
-
-				isEven = false;
-			}
-
-
-			vert2.x = vert1.x + 0.1;
-			vert2.y = vert1.y;
-
-			vert3.x = vert1.x;
-			vert3.y = vert1.y - 0.1;
-
-			vert4 = vert2;
-
-			vert5.x = vert2.x;
-			vert5.y = vert3.y;
-
-			vert6 = vert3;
-
-			gridVerts[gridVertCount].pos.x = vert1.x;
-			gridVerts[gridVertCount].pos.y = vert1.y;
-			gridVertCount++;
-
-			gridVerts[gridVertCount].pos.x = vert2.x;
-			gridVerts[gridVertCount].pos.y = vert2.y;
-			gridVertCount++;
-
-			gridVerts[gridVertCount].pos.x = vert3.x;
-			gridVerts[gridVertCount].pos.y = vert3.y;
-			gridVertCount++;
-
-			gridVerts[gridVertCount].pos.x = vert4.x;
-			gridVerts[gridVertCount].pos.y = vert4.y;
-			gridVertCount++;
-
-			gridVerts[gridVertCount].pos.x = vert5.x;
-			gridVerts[gridVertCount].pos.y = vert5.y;
-			gridVertCount++;
-
-			gridVerts[gridVertCount].pos.x = vert6.x;
-			gridVerts[gridVertCount].pos.y = vert6.y;
-			gridVertCount++;
-
-			vert1.x += 0.2;
-		}
-	}*/
 	
 	// TODO: PART 5 STEP 3
-	D3D11_BUFFER_DESC gridBufferDesc = {};
-
-	gridBufferDesc.Usage = D3D11_USAGE_DEFAULT;
-	gridBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	gridBufferDesc.CPUAccessFlags = NULL;
-	gridBufferDesc.ByteWidth = sizeof(SIMPLE_VERTEX) * 1200;
-	gridBufferDesc.StructureByteStride = sizeof(SIMPLE_VERTEX);
-	gridBufferDesc.MiscFlags = NULL;
-
-	D3D11_SUBRESOURCE_DATA gridBufferResource;
-
-	gridBufferResource.pSysMem = gridVerts;
-	gridBufferResource.SysMemPitch = 0;
-	gridBufferResource.SysMemSlicePitch = 0;
-
-	device->CreateBuffer(&gridBufferDesc, &gridBufferResource, &gridBuffer);
 
 	// TODO: PART 2 STEP 5
 	// ADD SHADERS TO PROJECT, SET BUILD OPTIONS & COMPILE
@@ -431,6 +360,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	D3D11_INPUT_ELEMENT_DESC vLayout[] =
 	{
 		{"POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
+		//{ "TEXTURECOORDS", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 		{"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
 	};
 
@@ -450,9 +380,9 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	// TODO: PART 3 STEP 4b
 	worldMatrix1 = DirectX::XMMatrixIdentity();
 	worldMatrix2 = DirectX::XMMatrixIdentity();
-	viewMatrix = DirectX::XMMatrixRotationX(-18.0f);
-	viewMatrix = DirectX::XMMatrixMultiply(DirectX::XMMatrixTranslation(0, 0, -1.0f), viewMatrix);
-	viewMatrix = DirectX::XMMatrixInverse(nullptr, viewMatrix);
+	cameraMatrix = DirectX::XMMatrixRotationX(-18.0f);
+	cameraMatrix = DirectX::XMMatrixMultiply(DirectX::XMMatrixTranslation(0, 0, -1.0f), cameraMatrix);
+	viewMatrix = DirectX::XMMatrixInverse(nullptr, cameraMatrix);
 	projectionMatrix = DirectX::XMMatrixPerspectiveFovLH(90, BACKBUFFER_WIDTH / BACKBUFFER_HEIGHT, 0.1f, 10.0f);
 	//toShader.constantOffset = { 0, 0 };
 	//toShader.worldMatrix = DirectX::XMMatrixTranslation(0, 0.25f, 0);
@@ -480,53 +410,53 @@ bool DEMO_APP::Run()
 	
 	// TODO: PART 4 STEP 5
 
-	if (cameraTimer >= 0.05f)
+	if (cameraTimer >= 0.025f)
 	{
 		if (GetAsyncKeyState(0x57)) // 'W'
 		{
-			DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(0.0f, 0.0f, -0.1f);
+			DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(0.0f, 0.0f, 0.05f);
 
-			viewMatrix = DirectX::XMMatrixMultiply(tempM, viewMatrix);
+			cameraMatrix = DirectX::XMMatrixMultiply(tempM, cameraMatrix);
 
 			cameraTimer = 0.0f;
 		}
 		if (GetAsyncKeyState(0x41)) // 'A'
 		{
-			DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(0.1f, 0.0f, 0.0f);
+			DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(-0.05f, 0.0f, 0.0f);
 
-			viewMatrix = DirectX::XMMatrixMultiply(tempM, viewMatrix);
+			cameraMatrix = DirectX::XMMatrixMultiply(tempM, cameraMatrix);
 
 			cameraTimer = 0.0f;
 		}
 		if (GetAsyncKeyState(0x53)) // 'S'
 		{
-			DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(0.0f, 0.0f, 0.1f);
+			DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(0.0f, 0.0f, -0.05f);
 
-			viewMatrix = DirectX::XMMatrixMultiply(tempM, viewMatrix);
+			cameraMatrix = DirectX::XMMatrixMultiply(tempM, cameraMatrix);
 
 			cameraTimer = 0.0f;
 		}
 		if (GetAsyncKeyState(0x44)) // 'D'
 		{
-			DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(-0.1f, 0.0f, 0.0f);
+			DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(0.05f, 0.0f, 0.0f);
 
-			viewMatrix = DirectX::XMMatrixMultiply(tempM, viewMatrix);
+			cameraMatrix = DirectX::XMMatrixMultiply(tempM, cameraMatrix);
 
 			cameraTimer = 0.0f;
 		}
 		if (GetAsyncKeyState(VK_UP)) // UP ARROW KEY
 		{
-			DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(0.0f, -0.1f, 0.0f);
+			DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(0.0f, 0.05f, 0.0f);
 
-			viewMatrix = DirectX::XMMatrixMultiply(tempM, viewMatrix);
+			cameraMatrix = DirectX::XMMatrixMultiply(tempM, cameraMatrix);
 
 			cameraTimer = 0.0f;
 		}
 		if (GetAsyncKeyState(VK_DOWN)) // DOWN ARROW KEY
 		{
-			DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(0.0f, 0.1f, 0.0f);
+			DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(0.0f, -0.05f, 0.0f);
 
-			viewMatrix = DirectX::XMMatrixMultiply(tempM, viewMatrix);
+			cameraMatrix = DirectX::XMMatrixMultiply(tempM, cameraMatrix);
 
 			cameraTimer = 0.0f;
 		}
@@ -555,31 +485,17 @@ bool DEMO_APP::Run()
 	//toGridShader.padding = { 0.0f, 0.0f };
 
 	// TODO: PART 5 STEP 5
-	D3D11_MAPPED_SUBRESOURCE resource2;
-	context->Map(cBuffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &resource2);
-	memcpy(resource2.pData, &toGridShader, sizeof(toGridShader));
-	context->Unmap(cBuffer, NULL);
 
 	// TODO: PART 5 STEP 6
-	context->VSSetConstantBuffers(0, 1, &cBuffer);
-
-	UINT gridStride = sizeof(SIMPLE_VERTEX);
-	UINT gridOffset = 0;
-	context->IASetVertexBuffers(0, 1, &gridBuffer, &gridStride, &gridOffset);
-	context->IASetInputLayout(inputLayout);
-	context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	// TODO: PART 5 STEP 7
-	context->VSSetShader(vs, 0, 0);
-	context->PSSetShader(ps, 0, 0);
-
-	context->Draw(1200, 0);
 
 	// END PART 5
 
 	// TODO: PART 3 STEP 5
 	worldMatrix1 = DirectX::XMMatrixMultiply(DirectX::XMMatrixRotationY(-timer), DirectX::XMMatrixTranslation(0.0f, 0.25f, 0.0f));
 	toShader.worldMatrix = worldMatrix1;
+	viewMatrix = DirectX::XMMatrixInverse(nullptr, cameraMatrix);
 	toShader.viewMatrix = viewMatrix;
 	toShader.projectionMatrix = projectionMatrix;
 
@@ -600,6 +516,7 @@ bool DEMO_APP::Run()
 	context->IASetIndexBuffer(indexBuffer, DXGI_FORMAT_R16_UINT, offset);
 
 	// TODO: PART 2 STEP 9b
+	context->VSSetShader(vs, 0, 0);
 	context->PSSetShader(ps, 0, 0);
 
 	// TODO: PART 2 STEP 9c
