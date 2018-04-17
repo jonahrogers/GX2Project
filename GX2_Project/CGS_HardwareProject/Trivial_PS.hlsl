@@ -1,9 +1,15 @@
-//struct INPUT_PIXEL
+//struct OUTPUT_VERTEX
 //{
 //	float4 coordinate : SV_POSITION;
-//	float3 normal : NORMAL;
+//	float2 tex : TEXCOORD0;
+//	//float4 color : COLOR;
+//	//float3 normal : NORMAL;
 //};
-//
+
+texture2D baseTexture : register(t0);
+
+SamplerState baseFilter : register(s0);
+
 //cbuffer LightBuffer
 //{
 //	float4 ambientColor;
@@ -12,7 +18,7 @@
 //	float padding;
 //};
 
-float4 main(/*INPUT_PIXEL*/float4 colorFromRasterizer : COLOR) : SV_TARGET
+float4 main( /*OUTPUT_VERTEX input*/float2 tex : TEXCOORD0) : SV_TARGET
 {
 	/*float3 lightDir;
 	float lightIntensity;
@@ -31,5 +37,5 @@ float4 main(/*INPUT_PIXEL*/float4 colorFromRasterizer : COLOR) : SV_TARGET
 
 	color = saturate(color);*/
 
-	return colorFromRasterizer;
+	return baseTexture.Sample( baseFilter, tex );
 }
