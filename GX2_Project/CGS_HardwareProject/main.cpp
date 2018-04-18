@@ -16,7 +16,8 @@
 #include <iostream>
 #include <ctime>
 #include "XTime.h"
-
+#include <vector>
+//#include <fstream>
 #include "DDSTextureLoader.h"
 
 using namespace std;
@@ -75,6 +76,7 @@ class DEMO_APP
 	ID3D11VertexShader* vs;
 	ID3D11PixelShader* ps;
 
+
 	// BEGIN PART 3
 	// TODO: PART 3 STEP 1
 	ID3D11Buffer* cBuffer;
@@ -96,11 +98,9 @@ class DEMO_APP
 		DirectX::XMMATRIX worldMatrix;
 		DirectX::XMMATRIX viewMatrix;
 		DirectX::XMMATRIX projectionMatrix;
-		DirectX::XMFLOAT4 rgba;
-
-		//DirectX::XMFLOAT4 constantColor;
-		//DirectX::XMFLOAT2 constantOffset;
-		//DirectX::XMFLOAT2 padding;
+		
+		//DirectX::XMFLOAT3 lightDirection;
+		//DirectX::XMFLOAT4 ambientColor;
 	};
 
 	//struct SEND_TO_PS
@@ -119,9 +119,11 @@ public:
 	{
 		DirectX::XMFLOAT3 pos;
 		DirectX::XMFLOAT2 texCoords;
-		//DirectX::XMFLOAT4 color;
 		//DirectX::XMFLOAT3 normal;
+		//DirectX::XMFLOAT4 color;
 	};
+
+	SIMPLE_VERTEX* barrel;
 
 	DEMO_APP(HINSTANCE hinst, WNDPROC proc);
 	bool Run(); 
@@ -164,7 +166,6 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	ShowWindow(window, SW_SHOW);
 	//********************* END WARNING ************************//
 
-	// TODO: PART 1 STEP 3a
 	swapChainDesc.BufferCount = 1;
 	swapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	swapChainDesc.BufferDesc.Width = backBuffer_width;
@@ -175,14 +176,12 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	swapChainDesc.SampleDesc.Count = 1;
 	swapChainDesc.Windowed = true;
 
-	// TODO: PART 1 STEP 3b
 	D3D_FEATURE_LEVEL featureLevel = D3D_FEATURE_LEVEL_10_0;
 
 	D3D11CreateDeviceAndSwapChain(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL,
 		D3D11_CREATE_DEVICE_DEBUG, &featureLevel, 1, D3D11_SDK_VERSION,
 		&swapChainDesc, &swapChain, &device, NULL, &context);
 
-	// TODO: PART 1 STEP 4
 	swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&backBuffer);
 
 	device->CreateRenderTargetView(backBuffer, NULL, &rtv);
@@ -205,7 +204,6 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 	device->CreateDepthStencilView(depthBuffer, NULL, &dsv);
 
-	// TODO: PART 1 STEP 5
 	viewport.Width = 500;
 	viewport.Height = 500;
 	viewport.MinDepth = 0.0f;
@@ -213,118 +211,41 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	viewport.TopLeftX = 0;
 	viewport.TopLeftY = 0;
 
-	// TODO: PART 2 STEP 3a
 	SIMPLE_VERTEX cubeVerts[] =
 	{
-		{ DirectX::XMFLOAT3(-0.25f, 0.25f, -0.25f), DirectX::XMFLOAT2(0.0f, 0.0f) },
-		{ DirectX::XMFLOAT3(0.25f, 0.25f, -0.25f), DirectX::XMFLOAT2(1.0f, 0.0f) },
-		{ DirectX::XMFLOAT3(0.25f, 0.25f, 0.25f), DirectX::XMFLOAT2(1.0f, 1.0f) },
-		{ DirectX::XMFLOAT3(-0.25f, 0.25f, 0.25f), DirectX::XMFLOAT2(0.0f, 1.0f) },
+		{ DirectX::XMFLOAT3(-0.25f, 0.25f, -0.25f), DirectX::XMFLOAT2(0.0f, 1.0f)},
+		{ DirectX::XMFLOAT3(0.25f, 0.25f, -0.25f), DirectX::XMFLOAT2(1.0f, 1.0f)},
+		{ DirectX::XMFLOAT3(0.25f, 0.25f, 0.25f), DirectX::XMFLOAT2(1.0f, 0.0f)},
+		{ DirectX::XMFLOAT3(-0.25f, 0.25f, 0.25f), DirectX::XMFLOAT2(0.0f, 0.0f)},
 
-		{ DirectX::XMFLOAT3(-0.25f, -0.25f, -0.25f), DirectX::XMFLOAT2(0.0f, 0.0f) },
-		{ DirectX::XMFLOAT3(0.25f, -0.25f, -0.25f), DirectX::XMFLOAT2(1.0f, 0.0f) },
-		{ DirectX::XMFLOAT3(0.25f, -0.25f, 0.25f), DirectX::XMFLOAT2(1.0f, 1.0f) },
-		{ DirectX::XMFLOAT3(-0.25f, -0.25f, 0.25f), DirectX::XMFLOAT2(0.0f, 1.0f) },
+		{ DirectX::XMFLOAT3(-0.25f, -0.25f, -0.25f), DirectX::XMFLOAT2(0.0f, 1.0f)},
+		{ DirectX::XMFLOAT3(0.25f, -0.25f, -0.25f), DirectX::XMFLOAT2(1.0f, 1.0f)},
+		{ DirectX::XMFLOAT3(0.25f, -0.25f, 0.25f), DirectX::XMFLOAT2(1.0f, 0.0f)},
+		{ DirectX::XMFLOAT3(-0.25f, -0.25f, 0.25f), DirectX::XMFLOAT2(0.0f, 0.0f)},
 
-		{ DirectX::XMFLOAT3(-0.25f, -0.25f, 0.25f), DirectX::XMFLOAT2(0.0f, 0.0f) },
-		{ DirectX::XMFLOAT3(-0.25f, -0.25f, -0.25f), DirectX::XMFLOAT2(1.0f, 0.0f) },
-		{ DirectX::XMFLOAT3(-0.25f, 0.25f, -0.25f), DirectX::XMFLOAT2(1.0f, 1.0f) },
-		{ DirectX::XMFLOAT3(-0.25f, 0.25f, 0.25f), DirectX::XMFLOAT2(0.0f, 1.0f) },
+		{ DirectX::XMFLOAT3(-0.25f, -0.25f, 0.25f), DirectX::XMFLOAT2(0.0f, 1.0f)},
+		{ DirectX::XMFLOAT3(-0.25f, -0.25f, -0.25f), DirectX::XMFLOAT2(1.0f, 1.0f)},
+		{ DirectX::XMFLOAT3(-0.25f, 0.25f, -0.25f), DirectX::XMFLOAT2(1.0f, 0.0f)},
+		{ DirectX::XMFLOAT3(-0.25f, 0.25f, 0.25f), DirectX::XMFLOAT2(0.0f, 0.0f)},
 
-		{ DirectX::XMFLOAT3(0.25f, -0.25f, 0.25f), DirectX::XMFLOAT2(0.0f, 0.0f) },
-		{ DirectX::XMFLOAT3(0.25f, -0.25f, -0.25f), DirectX::XMFLOAT2(1.0f, 0.0f) },
-		{ DirectX::XMFLOAT3(0.25f, 0.25f, -0.25f), DirectX::XMFLOAT2(1.0f, 1.0f) },
-		{ DirectX::XMFLOAT3(0.25f, 0.25f, 0.25f), DirectX::XMFLOAT2(0.0f, 1.0f) },
+		{ DirectX::XMFLOAT3(0.25f, -0.25f, 0.25f), DirectX::XMFLOAT2(1.0f, 1.0f)},
+		{ DirectX::XMFLOAT3(0.25f, -0.25f, -0.25f), DirectX::XMFLOAT2(0.0f, 1.0f)},
+		{ DirectX::XMFLOAT3(0.25f, 0.25f, -0.25f), DirectX::XMFLOAT2(0.0f, 0.0f)},
+		{ DirectX::XMFLOAT3(0.25f, 0.25f, 0.25f), DirectX::XMFLOAT2(1.0f, 0.0f)},
 
-		{ DirectX::XMFLOAT3(-0.25f, -0.25f, -0.25f), DirectX::XMFLOAT2(0.0f, 0.0f) },
-		{ DirectX::XMFLOAT3(0.25f, -0.25f, -0.25f), DirectX::XMFLOAT2(1.0f, 0.0f) },
-		{ DirectX::XMFLOAT3(0.25f, 0.25f, -0.25f), DirectX::XMFLOAT2(1.0f, 1.0f) },
-		{ DirectX::XMFLOAT3(-0.25f, 0.25f, -0.25f), DirectX::XMFLOAT2(0.0f, 1.0f) },
+		{ DirectX::XMFLOAT3(-0.25f, -0.25f, -0.25f), DirectX::XMFLOAT2(0.0f, 1.0f),},
+		{ DirectX::XMFLOAT3(0.25f, -0.25f, -0.25f), DirectX::XMFLOAT2(1.0f, 1.0f),},
+		{ DirectX::XMFLOAT3(0.25f, 0.25f, -0.25f), DirectX::XMFLOAT2(1.0f, 0.0f),},
+		{ DirectX::XMFLOAT3(-0.25f, 0.25f, -0.25f), DirectX::XMFLOAT2(0.0f, 0.0f),},
 
-		{ DirectX::XMFLOAT3(-0.25f, -0.25f, 0.25f), DirectX::XMFLOAT2(0.0f, 0.0f) },
-		{ DirectX::XMFLOAT3(0.25f, -0.25f, 0.25f), DirectX::XMFLOAT2(1.0f, 0.0f) },
-		{ DirectX::XMFLOAT3(0.25f, 0.25f, 0.25f), DirectX::XMFLOAT2(1.0f, 1.0f) },
-		{ DirectX::XMFLOAT3(-0.25f, 0.25f, 0.25f), DirectX::XMFLOAT2(0.0f, 1.0f) },
+		{ DirectX::XMFLOAT3(-0.25f, -0.25f, 0.25f), DirectX::XMFLOAT2(1.0f, 1.0f)},
+		{ DirectX::XMFLOAT3(0.25f, -0.25f, 0.25f), DirectX::XMFLOAT2(0.0f, 1.0f)},
+		{ DirectX::XMFLOAT3(0.25f, 0.25f, 0.25f), DirectX::XMFLOAT2(0.0f, 0.0f)},
+		{ DirectX::XMFLOAT3(-0.25f, 0.25f, 0.25f), DirectX::XMFLOAT2(1.0f, 0.0f)},
 	};
 
-#if 1
-//	SIMPLE_VERTEX verticies[8];
-//
-//	//Bottom Left, -z
-//	cubeVerts[0].pos.x = -0.25f;
-//	cubeVerts[0].pos.y = -0.25f;
-//	cubeVerts[0].pos.z = -0.25f;
-//	cubeVerts[0].pos.w = 1;
-//	cubeVerts[0].color = { 0.0f, 1.0f, 0.0f, 1.0f };
-//	cubeVerts[0].normal.x = cubeVerts[0].pos.x;
-//	cubeVerts[0].normal.y = cubeVerts[0].pos.y;
-//	cubeVerts[0].normal.z = cubeVerts[0].pos.z;
-//	//Bottom Left, +z
-//	cubeVerts[1].pos.x = -0.25f;
-//	cubeVerts[1].pos.y = -0.25f;
-//	cubeVerts[1].pos.z = 0.25f;
-//	cubeVerts[1].pos.w = 1;
-//	cubeVerts[1].color = { 1.0f, 0.0f, 1.0f, 1.0f };
-//	cubeVerts[1].normal.x = cubeVerts[1].pos.x;
-//	cubeVerts[1].normal.y = cubeVerts[1].pos.y;
-//	cubeVerts[1].normal.z = cubeVerts[1].pos.z;
-//	//Bottom Right, +z
-//	cubeVerts[2].pos.x = 0.25f;
-//	cubeVerts[2].pos.y = -0.25f;
-//	cubeVerts[2].pos.z = 0.25f;
-//	cubeVerts[2].pos.w = 1;
-//	cubeVerts[2].color = { 1.0f, 1.0f, 0.0f, 1.0f };
-//	cubeVerts[2].normal.x = cubeVerts[2].pos.x;
-//	cubeVerts[2].normal.y = cubeVerts[2].pos.y;
-//	cubeVerts[2].normal.z = cubeVerts[2].pos.z;
-//	//Bottom Right, -z
-//	cubeVerts[3].pos.x = 0.25f;
-//	cubeVerts[3].pos.y = -0.25f;
-//	cubeVerts[3].pos.z = -0.25f;
-//	cubeVerts[3].pos.w = 1;
-//	cubeVerts[3].color = { 0.0f, 0.0f, 1.0f, 1.0f };
-//	cubeVerts[3].normal.x = cubeVerts[3].pos.x;
-//	cubeVerts[3].normal.y = cubeVerts[3].pos.y;
-//	cubeVerts[3].normal.z = cubeVerts[3].pos.z;
-//	//Top Left, -z
-//	cubeVerts[4].pos.x = -0.25f;
-//	cubeVerts[4].pos.y = 0.25f;
-//	cubeVerts[4].pos.z = -0.25f;
-//	cubeVerts[4].pos.w = 1;
-//	cubeVerts[4].color = { 1.0f, 0.0f, 0.0f, 1.0f };
-//	cubeVerts[4].normal.x = cubeVerts[4].pos.x;
-//	cubeVerts[4].normal.y = cubeVerts[4].pos.y;
-//	cubeVerts[4].normal.z = cubeVerts[4].pos.z;
-//	//Top Left, +z
-//	cubeVerts[5].pos.x = -0.25f;
-//	cubeVerts[5].pos.y = 0.25f;
-//	cubeVerts[5].pos.z = 0.25f;
-//	cubeVerts[5].pos.w = 1;
-//	cubeVerts[5].color = { 1.0f, 1.0f, 1.0f, 1.0f };
-//	cubeVerts[5].normal.x = cubeVerts[5].pos.x;
-//	cubeVerts[5].normal.y = cubeVerts[5].pos.y;
-//	cubeVerts[5].normal.z = cubeVerts[5].pos.z;
-//	//Top Right, +z
-//	cubeVerts[6].pos.x = 0.25f;
-//	cubeVerts[6].pos.y = 0.25f;
-//	cubeVerts[6].pos.z = 0.25f;
-//	cubeVerts[6].pos.w = 1;
-//	cubeVerts[6].color = { 0.0f, 1.0f, 1.0f, 1.0f };
-//	cubeVerts[6].normal.x = cubeVerts[6].pos.x;
-//	cubeVerts[6].normal.y = cubeVerts[6].pos.y;
-//	cubeVerts[6].normal.z = cubeVerts[6].pos.z;
-//	//Top Right, -z
-//	cubeVerts[7].pos.x = 0.25f;
-//	cubeVerts[7].pos.y = 0.25f;
-//	cubeVerts[7].pos.z = -0.25f;
-//	cubeVerts[7].pos.w = 1;
-//	cubeVerts[7].color = { 0.0f, 0.0f, 0.0f, 1.0f };
-//	cubeVerts[7].normal.x = cubeVerts[7].pos.x;
-//	cubeVerts[7].normal.y = cubeVerts[7].pos.y;
-//	cubeVerts[7].normal.z = cubeVerts[7].pos.z;
-#endif
-
-	short triangleVerts[] = {
+	short triangleVerts[] = 
+	{
 	//Front Face
 		16,19,17, 19,18,17,
 	//Right Face
@@ -338,19 +259,13 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	//Bottom Face
 		5,7,4, 5,6,7
 	};
-	
 
-	// BEGIN PART 4
-	// TODO: PART 4 STEP 1
-
-	// TODO: PART 2 STEP 3b
 	D3D11_BUFFER_DESC bufferDesc = {};
 	bufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
 	bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	bufferDesc.CPUAccessFlags = NULL;
 	bufferDesc.ByteWidth = sizeof(SIMPLE_VERTEX) * ARRAYSIZE(cubeVerts);
 
-	// TODO: PART 2 STEP 3c
 	D3D11_SUBRESOURCE_DATA bufferResource = {};
 	bufferResource.pSysMem = cubeVerts;
 
@@ -362,7 +277,6 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	indexDesc.CPUAccessFlags = NULL;
 	indexDesc.ByteWidth = sizeof(short) * ARRAYSIZE(triangleVerts);
 
-	// TODO: PART 2 STEP 3d
 	bufferResource.pSysMem = triangleVerts;
 
 	device->CreateBuffer(&indexDesc, &bufferResource, &indexBuffer);
@@ -380,32 +294,19 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
 	result = device->CreateSamplerState(&sampDesc, &samplerState);
 
-	// TODO: PART 5 STEP 2a
-
-	// TODO: PART 5 STEP 2b
-	
-	// TODO: PART 5 STEP 3
-
-	// TODO: PART 2 STEP 5
-	// ADD SHADERS TO PROJECT, SET BUILD OPTIONS & COMPILE
-
-	// TODO: PART 2 STEP 7
 	device->CreateVertexShader(Trivial_VS, sizeof(Trivial_VS), NULL, &vs);
 	device->CreatePixelShader(Trivial_PS, sizeof(Trivial_PS), NULL, &ps);
 
-	// TODO: PART 2 STEP 8a
 	D3D11_INPUT_ELEMENT_DESC vLayout[] =
 	{
 		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
+		//{"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
 		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 		//{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		//{"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
 	};
 
-	// TODO: PART 2 STEP 8b
 	device->CreateInputLayout(vLayout, ARRAYSIZE(vLayout), Trivial_VS, sizeof(Trivial_VS), &inputLayout);
 
-	// TODO: PART 3 STEP 3
 	cBufferDesc.Usage = D3D11_USAGE_DYNAMIC;
 	cBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 	cBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
@@ -413,7 +314,6 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 	device->CreateBuffer(&cBufferDesc, NULL, &cBuffer);
 
-	// TODO: PART 3 STEP 4b
 	worldMatrix1 = DirectX::XMMatrixIdentity();
 	worldMatrix2 = DirectX::XMMatrixIdentity();
 	//cameraMatrix = DirectX::XMMatrixLookToLH();
@@ -422,9 +322,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	viewMatrix = DirectX::XMMatrixInverse(nullptr, cameraMatrix);
 	
 	projectionMatrix = DirectX::XMMatrixPerspectiveFovLH(DirectX::XMConvertToRadians(90), backBuffer_width / backBuffer_height, 0.1f, 100.0f);
-	//toShader.light = { -0.333f, -0.333f, 0.333f, 0 };
-	
-	//toShader.constantColor = { 1.0f, 1.0f, 0.0f, 1.0f };
+
 
 }
 
@@ -434,13 +332,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 bool DEMO_APP::Run()
 {
-	// TODO: PART 4 STEP 2	
 	time.Signal();
-	//projectionMatrix = DirectX::XMMatrixPerspectiveFovLH(90, backBuffer_width / backBuffer_height, 0.1f, 100.0f);
-
-	// TODO: PART 4 STEP 3
-	
-	// TODO: PART 4 STEP 5
 
 	if (cameraTimer >= 0.025f)
 	{
@@ -476,19 +368,19 @@ bool DEMO_APP::Run()
 
 			cameraTimer = 0.0f;
 		}
-		if (GetAsyncKeyState(VK_UP)) // UP ARROW KEY
+		if (GetAsyncKeyState(0x51)) // 'Q'
 		{
 			DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(0.0f, 0.05f, 0.0f);
 
-			cameraMatrix = DirectX::XMMatrixMultiply(tempM, cameraMatrix);
+			cameraMatrix = DirectX::XMMatrixMultiply(cameraMatrix, tempM);
 
 			cameraTimer = 0.0f;
 		}
-		if (GetAsyncKeyState(VK_DOWN)) // DOWN ARROW KEY
+		if (GetAsyncKeyState(0x45)) // 'E'
 		{
 			DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(0.0f, -0.05f, 0.0f);
 
-			cameraMatrix = DirectX::XMMatrixMultiply(tempM, cameraMatrix);
+			cameraMatrix = DirectX::XMMatrixMultiply(cameraMatrix, tempM);
 
 			cameraTimer = 0.0f;
 		}
@@ -506,7 +398,7 @@ bool DEMO_APP::Run()
 	context->RSSetViewports(1, &viewport);
 
 	// TODO: PART 1 STEP 7c
-	FLOAT arr[4] = { 0.0f, 0.0f, 0.7f, 1.0f };
+	FLOAT arr[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 
 	context->ClearRenderTargetView(rtv, arr);
 	context->ClearDepthStencilView(dsv, D3D11_CLEAR_DEPTH, 1.0f, 1.0f);
@@ -528,6 +420,9 @@ bool DEMO_APP::Run()
 	toShader.viewMatrix = viewMatrix;
 	toShader.projectionMatrix = projectionMatrix;
 
+	//toShader.lightDirection = DirectX::XMFLOAT3(1.0f, 0.0f, 0.0f);
+	//toShader.ambientColor = DirectX::XMFLOAT4(0.1f, 0.3f, 0.3f, 1.0f);
+
 	timer += time.SmoothDelta();
 
 	D3D11_MAPPED_SUBRESOURCE ms;
@@ -537,6 +432,7 @@ bool DEMO_APP::Run()
 
 	// TODO: PART 3 STEP 6
 	context->VSSetConstantBuffers(0, 1, &cBuffer);
+	context->PSSetConstantBuffers(0, 1, &cBuffer);
 
 	// TODO: PART 2 STEP 9a
 	UINT stride = sizeof(SIMPLE_VERTEX);
