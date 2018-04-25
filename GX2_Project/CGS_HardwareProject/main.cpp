@@ -16,16 +16,18 @@
 #include <iostream>
 #include <ctime>
 #include "XTime.h"
+<<<<<<< HEAD
 #include <vector>
 //#include <fstream>
 #include "DDSTextureLoader.h"
+=======
+>>>>>>> parent of 0f18ab0... Working on textures
 
 using namespace std;
 
 // BEGIN PART 1
 // TODO: PART 1 STEP 1a
 #include <d3d11.h>
-#pragma comment(lib, "d3d11");
 
 // TODO: PART 1 STEP 1b
 #include <DirectXMath.h>
@@ -88,8 +90,11 @@ class DEMO_APP
 	DirectX::XMMATRIX worldMatrix1;
 	DirectX::XMMATRIX worldMatrix2;
 	DirectX::XMMATRIX viewMatrix;
+<<<<<<< HEAD
 	DirectX::XMMATRIX cameraMatrix;
 	POINT tempPointDown = { MININT, MININT };
+=======
+>>>>>>> parent of 0f18ab0... Working on textures
 	DirectX::XMMATRIX projectionMatrix;
 
 	// TODO: PART 3 STEP 2b
@@ -117,10 +122,15 @@ public:
 	// TODO: PART 2 STEP 1
 	struct SIMPLE_VERTEX
 	{
+<<<<<<< HEAD
 		DirectX::XMFLOAT3 pos;
 		DirectX::XMFLOAT2 texCoords;
 		//DirectX::XMFLOAT3 normal;
 		//DirectX::XMFLOAT4 color;
+=======
+		DirectX::XMFLOAT4 pos;
+		DirectX::XMFLOAT4 color;
+>>>>>>> parent of 0f18ab0... Working on textures
 	};
 
 	SIMPLE_VERTEX* barrel;
@@ -211,6 +221,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	viewport.TopLeftX = 0;
 	viewport.TopLeftY = 0;
 
+<<<<<<< HEAD
 	SIMPLE_VERTEX cubeVerts[] =
 	{
 		{ DirectX::XMFLOAT3(-0.25f, 0.25f, -0.25f), DirectX::XMFLOAT2(0.0f, 1.0f)},
@@ -246,6 +257,76 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 	short triangleVerts[] = 
 	{
+=======
+	// TODO: PART 2 STEP 3a
+	//SIMPLE_VERTEX circleVerts[361];
+	SIMPLE_VERTEX cubeVerts[8];
+
+	/*for (unsigned int i = 0; i <= 360; ++i)
+	{
+		if (i == 360)
+		{
+			circleVerts[i] = circleVerts[0];
+		}
+		else
+		{
+		circleVerts[i].pos.x = sin(DirectX::XM_PI / 180.0f * i);
+		circleVerts[i].pos.y = cos(DirectX::XM_PI / 180.0f * i);
+		}
+	}*/
+
+#if 1
+	//Bottom Left, -z
+	cubeVerts[0].pos.x = -0.25f;
+	cubeVerts[0].pos.y = -0.25f;
+	cubeVerts[0].pos.z = -0.25f;
+	cubeVerts[0].pos.w = 1;
+	cubeVerts[0].color = { 0.0f, 1.0f, 0.0f, 1.0f };
+	//Bottom Left, +z
+	cubeVerts[1].pos.x = -0.25f;
+	cubeVerts[1].pos.y = -0.25f;
+	cubeVerts[1].pos.z = 0.25f;
+	cubeVerts[1].pos.w = 1;
+	cubeVerts[1].color = { 1.0f, 0.0f, 1.0f, 1.0f };
+	//Bottom Right, +z
+	cubeVerts[2].pos.x = 0.25f;
+	cubeVerts[2].pos.y = -0.25f;
+	cubeVerts[2].pos.z = 0.25f;
+	cubeVerts[2].pos.w = 1;
+	cubeVerts[2].color = { 1.0f, 1.0f, 0.0f, 1.0f };
+	//Bottom Right, -z
+	cubeVerts[3].pos.x = 0.25f;
+	cubeVerts[3].pos.y = -0.25f;
+	cubeVerts[3].pos.z = -0.25f;
+	cubeVerts[3].pos.w = 1;
+	cubeVerts[3].color = { 0.0f, 0.0f, 1.0f, 1.0f };
+	//Top Left, -z
+	cubeVerts[4].pos.x = -0.25f;
+	cubeVerts[4].pos.y = 0.25f;
+	cubeVerts[4].pos.z = -0.25f;
+	cubeVerts[4].pos.w = 1;
+	cubeVerts[4].color = { 1.0f, 0.0f, 0.0f, 1.0f };
+	//Top Left, +z
+	cubeVerts[5].pos.x = -0.25f;
+	cubeVerts[5].pos.y = 0.25f;
+	cubeVerts[5].pos.z = 0.25f;
+	cubeVerts[5].pos.w = 1;
+	cubeVerts[5].color = { 1.0f, 1.0f, 1.0f, 1.0f };
+	//Top Right, +z
+	cubeVerts[6].pos.x = 0.25f;
+	cubeVerts[6].pos.y = 0.25f;
+	cubeVerts[6].pos.z = 0.25f;
+	cubeVerts[6].pos.w = 1;
+	cubeVerts[6].color = { 0.0f, 1.0f, 1.0f, 1.0f };
+	//Top Right, -z
+	cubeVerts[7].pos.x = 0.25f;
+	cubeVerts[7].pos.y = 0.25f;
+	cubeVerts[7].pos.z = -0.25f;
+	cubeVerts[7].pos.w = 1;
+	cubeVerts[7].color = { 0.0f, 0.0f, 0.0f, 1.0f };
+
+	short triangleVerts[] = {
+>>>>>>> parent of 0f18ab0... Working on textures
 	//Front Face
 		16,19,17, 19,18,17,
 	//Right Face
@@ -281,6 +362,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 	device->CreateBuffer(&indexDesc, &bufferResource, &indexBuffer);
 
+<<<<<<< HEAD
 	HRESULT result = DirectX::CreateDDSTextureFromFile(device, L"greendragon.dds", nullptr, &diffuseView, 0, nullptr);
 
 	D3D11_SAMPLER_DESC sampDesc;
@@ -294,15 +376,117 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
 	result = device->CreateSamplerState(&sampDesc, &samplerState);
 
+=======
+	// TODO: PART 5 STEP 2a
+	SIMPLE_VERTEX gridVerts[1200];
+
+	// TODO: PART 5 STEP 2b
+	/*DirectX::XMFLOAT2 vert1 = { -0.9f, 1.0f };
+	DirectX::XMFLOAT2 vert2 = { 0, 0 };
+	DirectX::XMFLOAT2 vert3 = { 0, 0 };
+	DirectX::XMFLOAT2 vert4 = { 0, 0 };
+	DirectX::XMFLOAT2 vert5 = { 0, 0 };
+	DirectX::XMFLOAT2 vert6 = { 0, 0 };
+	bool isEven = false;
+
+	for (unsigned int i = 0; i < 20; i++)
+	{
+		for (unsigned int j = 0; j < 10; ++j)
+		{
+			if (isEven == false && vert1.x > 0.9)
+			{
+				vert1.x = -1.0;
+				vert1.y -= 0.1;
+
+				isEven = true;
+			}
+			else if (isEven == true && vert1.x > 0.8)
+			{
+				vert1.x = -0.9;
+				vert1.y -= 0.1;
+
+				isEven = false;
+			}
+
+
+			vert2.x = vert1.x + 0.1;
+			vert2.y = vert1.y;
+
+			vert3.x = vert1.x;
+			vert3.y = vert1.y - 0.1;
+
+			vert4 = vert2;
+
+			vert5.x = vert2.x;
+			vert5.y = vert3.y;
+
+			vert6 = vert3;
+
+			gridVerts[gridVertCount].pos.x = vert1.x;
+			gridVerts[gridVertCount].pos.y = vert1.y;
+			gridVertCount++;
+
+			gridVerts[gridVertCount].pos.x = vert2.x;
+			gridVerts[gridVertCount].pos.y = vert2.y;
+			gridVertCount++;
+
+			gridVerts[gridVertCount].pos.x = vert3.x;
+			gridVerts[gridVertCount].pos.y = vert3.y;
+			gridVertCount++;
+
+			gridVerts[gridVertCount].pos.x = vert4.x;
+			gridVerts[gridVertCount].pos.y = vert4.y;
+			gridVertCount++;
+
+			gridVerts[gridVertCount].pos.x = vert5.x;
+			gridVerts[gridVertCount].pos.y = vert5.y;
+			gridVertCount++;
+
+			gridVerts[gridVertCount].pos.x = vert6.x;
+			gridVerts[gridVertCount].pos.y = vert6.y;
+			gridVertCount++;
+
+			vert1.x += 0.2;
+		}
+	}*/
+	
+	// TODO: PART 5 STEP 3
+	D3D11_BUFFER_DESC gridBufferDesc = {};
+
+	gridBufferDesc.Usage = D3D11_USAGE_DEFAULT;
+	gridBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	gridBufferDesc.CPUAccessFlags = NULL;
+	gridBufferDesc.ByteWidth = sizeof(SIMPLE_VERTEX) * 1200;
+	gridBufferDesc.StructureByteStride = sizeof(SIMPLE_VERTEX);
+	gridBufferDesc.MiscFlags = NULL;
+
+	D3D11_SUBRESOURCE_DATA gridBufferResource;
+
+	gridBufferResource.pSysMem = gridVerts;
+	gridBufferResource.SysMemPitch = 0;
+	gridBufferResource.SysMemSlicePitch = 0;
+
+	device->CreateBuffer(&gridBufferDesc, &gridBufferResource, &gridBuffer);
+
+	// TODO: PART 2 STEP 5
+	// ADD SHADERS TO PROJECT, SET BUILD OPTIONS & COMPILE
+
+	// TODO: PART 2 STEP 7
+>>>>>>> parent of 0f18ab0... Working on textures
 	device->CreateVertexShader(Trivial_VS, sizeof(Trivial_VS), NULL, &vs);
 	device->CreatePixelShader(Trivial_PS, sizeof(Trivial_PS), NULL, &ps);
 
 	D3D11_INPUT_ELEMENT_DESC vLayout[] =
 	{
+<<<<<<< HEAD
 		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
 		//{"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
 		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 		//{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+=======
+		{"POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
+		{"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
+>>>>>>> parent of 0f18ab0... Working on textures
 	};
 
 	device->CreateInputLayout(vLayout, ARRAYSIZE(vLayout), Trivial_VS, sizeof(Trivial_VS), &inputLayout);
@@ -316,10 +500,25 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 	worldMatrix1 = DirectX::XMMatrixIdentity();
 	worldMatrix2 = DirectX::XMMatrixIdentity();
+<<<<<<< HEAD
 	//cameraMatrix = DirectX::XMMatrixLookToLH();
 	cameraMatrix = DirectX::XMMatrixRotationX(-18.0f);
 	cameraMatrix = DirectX::XMMatrixMultiply(DirectX::XMMatrixTranslation(0, 0, -1.0f), cameraMatrix);
 	viewMatrix = DirectX::XMMatrixInverse(nullptr, cameraMatrix);
+=======
+	viewMatrix = DirectX::XMMatrixRotationX(-18.0f);
+	viewMatrix = DirectX::XMMatrixMultiply(DirectX::XMMatrixTranslation(0, 0, -1.0f), viewMatrix);
+	viewMatrix = DirectX::XMMatrixInverse(nullptr, viewMatrix);
+	projectionMatrix = DirectX::XMMatrixPerspectiveFovLH(90, BACKBUFFER_WIDTH / BACKBUFFER_HEIGHT, 0.1f, 10.0f);
+	//toShader.constantOffset = { 0, 0 };
+	//toShader.worldMatrix = DirectX::XMMatrixTranslation(0, 0.25f, 0);
+	//toShader.viewMatrix = DirectX::XMMatrixRotationX(-18.0f);
+	//toShader.viewMatrix = DirectX::XMMatrixMultiply(DirectX::XMMatrixTranslation(0, 0, -1.0f), toShader.viewMatrix);
+	//toShader.viewMatrix = DirectX::XMMatrixInverse(nullptr, toShader.viewMatrix);
+	//toShader.projectionMatrix = DirectX::XMMatrixPerspectiveFovLH(90, 500 / 500, 0.1f, 10.0f);
+	
+	//toShader.light = { -0.333f, -0.333f, 0.333f, 0 };
+>>>>>>> parent of 0f18ab0... Working on textures
 	
 	projectionMatrix = DirectX::XMMatrixPerspectiveFovLH(DirectX::XMConvertToRadians(90), backBuffer_width / backBuffer_height, 0.1f, 100.0f);
 
@@ -334,53 +533,69 @@ bool DEMO_APP::Run()
 {
 	time.Signal();
 
+<<<<<<< HEAD
 	if (cameraTimer >= 0.025f)
+=======
+	// TODO: PART 4 STEP 3
+	
+	// TODO: PART 4 STEP 5
+
+	if (cameraTimer >= 0.05f)
+>>>>>>> parent of 0f18ab0... Working on textures
 	{
 		if (GetAsyncKeyState(0x57)) // 'W'
 		{
-			DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(0.0f, 0.0f, 0.05f);
+			DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(0.0f, 0.0f, -0.1f);
 
-			cameraMatrix = DirectX::XMMatrixMultiply(tempM, cameraMatrix);
+			viewMatrix = DirectX::XMMatrixMultiply(tempM, viewMatrix);
 
 			cameraTimer = 0.0f;
 		}
 		if (GetAsyncKeyState(0x41)) // 'A'
 		{
-			DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(-0.05f, 0.0f, 0.0f);
+			DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(0.1f, 0.0f, 0.0f);
 
-			cameraMatrix = DirectX::XMMatrixMultiply(tempM, cameraMatrix);
+			viewMatrix = DirectX::XMMatrixMultiply(tempM, viewMatrix);
 
 			cameraTimer = 0.0f;
 		}
 		if (GetAsyncKeyState(0x53)) // 'S'
 		{
-			DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(0.0f, 0.0f, -0.05f);
+			DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(0.0f, 0.0f, 0.1f);
 
-			cameraMatrix = DirectX::XMMatrixMultiply(tempM, cameraMatrix);
+			viewMatrix = DirectX::XMMatrixMultiply(tempM, viewMatrix);
 
 			cameraTimer = 0.0f;
 		}
 		if (GetAsyncKeyState(0x44)) // 'D'
 		{
-			DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(0.05f, 0.0f, 0.0f);
+			DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(-0.1f, 0.0f, 0.0f);
 
-			cameraMatrix = DirectX::XMMatrixMultiply(tempM, cameraMatrix);
+			viewMatrix = DirectX::XMMatrixMultiply(tempM, viewMatrix);
 
 			cameraTimer = 0.0f;
 		}
 		if (GetAsyncKeyState(0x51)) // 'Q'
 		{
-			DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(0.0f, 0.05f, 0.0f);
+			DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(0.0f, -0.1f, 0.0f);
 
+<<<<<<< HEAD
 			cameraMatrix = DirectX::XMMatrixMultiply(cameraMatrix, tempM);
+=======
+			viewMatrix = DirectX::XMMatrixMultiply(tempM, viewMatrix);
+>>>>>>> parent of 0f18ab0... Working on textures
 
 			cameraTimer = 0.0f;
 		}
 		if (GetAsyncKeyState(0x45)) // 'E'
 		{
-			DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(0.0f, -0.05f, 0.0f);
+			DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(0.0f, 0.1f, 0.0f);
 
+<<<<<<< HEAD
 			cameraMatrix = DirectX::XMMatrixMultiply(cameraMatrix, tempM);
+=======
+			viewMatrix = DirectX::XMMatrixMultiply(tempM, viewMatrix);
+>>>>>>> parent of 0f18ab0... Working on textures
 
 			cameraTimer = 0.0f;
 		}
@@ -406,17 +621,31 @@ bool DEMO_APP::Run()
 	// TODO: PART 5 STEP 4
 
 	// TODO: PART 5 STEP 5
+	D3D11_MAPPED_SUBRESOURCE resource2;
+	context->Map(cBuffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &resource2);
+	memcpy(resource2.pData, &toGridShader, sizeof(toGridShader));
+	context->Unmap(cBuffer, NULL);
 
 	// TODO: PART 5 STEP 6
+	context->VSSetConstantBuffers(0, 1, &cBuffer);
+
+	UINT gridStride = sizeof(SIMPLE_VERTEX);
+	UINT gridOffset = 0;
+	context->IASetVertexBuffers(0, 1, &gridBuffer, &gridStride, &gridOffset);
+	context->IASetInputLayout(inputLayout);
+	context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	// TODO: PART 5 STEP 7
+	context->VSSetShader(vs, 0, 0);
+	context->PSSetShader(ps, 0, 0);
+
+	context->Draw(1200, 0);
 
 	// END PART 5
 
 	// TODO: PART 3 STEP 5
 	worldMatrix1 = DirectX::XMMatrixMultiply(DirectX::XMMatrixRotationY(-timer), DirectX::XMMatrixTranslation(0.0f, 0.25f, 0.0f));
 	toShader.worldMatrix = worldMatrix1;
-	viewMatrix = DirectX::XMMatrixInverse(nullptr, cameraMatrix);
 	toShader.viewMatrix = viewMatrix;
 	toShader.projectionMatrix = projectionMatrix;
 
@@ -441,7 +670,6 @@ bool DEMO_APP::Run()
 	context->IASetIndexBuffer(indexBuffer, DXGI_FORMAT_R16_UINT, offset);
 
 	// TODO: PART 2 STEP 9b
-	context->VSSetShader(vs, 0, 0);
 	context->PSSetShader(ps, 0, 0);
 
 	context->PSSetShaderResources(0, 1, &diffuseView);

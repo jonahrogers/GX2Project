@@ -169,7 +169,10 @@
     <ClCompile Include="XTime.cpp" />
   </ItemGroup>
   <ItemGroup>
+<<<<<<< HEAD
     <ClInclude Include="..\..\..\..\..\..\Jonah%27s pc\Documents\GitHub\GX2Project\GX2_Project\CGS_HardwareProject\DDSTextureLoader.h" />
+=======
+>>>>>>> parent of 0f18ab0... Working on textures
     <ClInclude Include="XTime.h" />
   </ItemGroup>
   <ItemGroup>

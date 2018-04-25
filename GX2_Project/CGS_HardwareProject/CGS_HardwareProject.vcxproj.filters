@@ -33,9 +33,12 @@
     <ClInclude Include="XTime.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+<<<<<<< HEAD
     <ClInclude Include="..\..\..\..\..\..\Jonah%27s pc\Documents\GitHub\GX2Project\GX2_Project\CGS_HardwareProject\DDSTextureLoader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+=======
+>>>>>>> parent of 0f18ab0... Working on textures
   </ItemGroup>
   <ItemGroup>
     <Image Include="..\..\..\..\..\..\Jonah%27s pc\Documents\GitHub\GX2Project\GX2_Project\CGS_HardwareProject\greendragon.dds" />
