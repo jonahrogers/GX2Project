@@ -17,9 +17,12 @@
 #include <ctime>
 #include "XTime.h"
 <<<<<<< HEAD
+<<<<<<< HEAD
 #include <vector>
 //#include <fstream>
 #include "DDSTextureLoader.h"
+=======
+>>>>>>> parent of 0f18ab0... Working on textures
 =======
 >>>>>>> parent of 0f18ab0... Working on textures
 
@@ -91,8 +94,11 @@ class DEMO_APP
 	DirectX::XMMATRIX worldMatrix2;
 	DirectX::XMMATRIX viewMatrix;
 <<<<<<< HEAD
+<<<<<<< HEAD
 	DirectX::XMMATRIX cameraMatrix;
 	POINT tempPointDown = { MININT, MININT };
+=======
+>>>>>>> parent of 0f18ab0... Working on textures
 =======
 >>>>>>> parent of 0f18ab0... Working on textures
 	DirectX::XMMATRIX projectionMatrix;
@@ -363,6 +369,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	device->CreateBuffer(&indexDesc, &bufferResource, &indexBuffer);
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 	HRESULT result = DirectX::CreateDDSTextureFromFile(device, L"greendragon.dds", nullptr, &diffuseView, 0, nullptr);
 
 	D3D11_SAMPLER_DESC sampDesc;
@@ -377,6 +384,8 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	result = device->CreateSamplerState(&sampDesc, &samplerState);
 
 =======
+=======
+>>>>>>> parent of 0f18ab0... Working on textures
 	// TODO: PART 5 STEP 2a
 	SIMPLE_VERTEX gridVerts[1200];
 
@@ -501,11 +510,14 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	worldMatrix1 = DirectX::XMMatrixIdentity();
 	worldMatrix2 = DirectX::XMMatrixIdentity();
 <<<<<<< HEAD
+<<<<<<< HEAD
 	//cameraMatrix = DirectX::XMMatrixLookToLH();
 	cameraMatrix = DirectX::XMMatrixRotationX(-18.0f);
 	cameraMatrix = DirectX::XMMatrixMultiply(DirectX::XMMatrixTranslation(0, 0, -1.0f), cameraMatrix);
 	viewMatrix = DirectX::XMMatrixInverse(nullptr, cameraMatrix);
 =======
+=======
+>>>>>>> parent of 0f18ab0... Working on textures
 	viewMatrix = DirectX::XMMatrixRotationX(-18.0f);
 	viewMatrix = DirectX::XMMatrixMultiply(DirectX::XMMatrixTranslation(0, 0, -1.0f), viewMatrix);
 	viewMatrix = DirectX::XMMatrixInverse(nullptr, viewMatrix);
@@ -541,6 +553,9 @@ bool DEMO_APP::Run()
 	// TODO: PART 4 STEP 5
 
 	if (cameraTimer >= 0.05f)
+<<<<<<< HEAD
+>>>>>>> parent of 0f18ab0... Working on textures
+=======
 >>>>>>> parent of 0f18ab0... Working on textures
 	{
 		if (GetAsyncKeyState(0x57)) // 'W'
@@ -580,7 +595,11 @@ bool DEMO_APP::Run()
 			DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(0.0f, -0.1f, 0.0f);
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 			cameraMatrix = DirectX::XMMatrixMultiply(cameraMatrix, tempM);
+=======
+			viewMatrix = DirectX::XMMatrixMultiply(tempM, viewMatrix);
+>>>>>>> parent of 0f18ab0... Working on textures
 =======
 			viewMatrix = DirectX::XMMatrixMultiply(tempM, viewMatrix);
 >>>>>>> parent of 0f18ab0... Working on textures
@@ -592,7 +611,11 @@ bool DEMO_APP::Run()
 			DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(0.0f, 0.1f, 0.0f);
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 			cameraMatrix = DirectX::XMMatrixMultiply(cameraMatrix, tempM);
+=======
+			viewMatrix = DirectX::XMMatrixMultiply(tempM, viewMatrix);
+>>>>>>> parent of 0f18ab0... Working on textures
 =======
 			viewMatrix = DirectX::XMMatrixMultiply(tempM, viewMatrix);
 >>>>>>> parent of 0f18ab0... Working on textures

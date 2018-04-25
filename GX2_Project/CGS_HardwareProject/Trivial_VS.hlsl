@@ -7,6 +7,9 @@ struct INPUT_VERTEX
 =======
 	float4 coordinate : POSITION;
 	float4 color : COLOR;
+<<<<<<< HEAD
+>>>>>>> parent of 0f18ab0... Working on textures
+=======
 >>>>>>> parent of 0f18ab0... Working on textures
 	//float3 normal : NORMAL;
 	float2 tex : TEXCOORD0;
@@ -20,6 +23,9 @@ struct OUTPUT_VERTEX
 =======
 	float4 colorOut : COLOR;
 	float4 projectedCoordinate : SV_POSITION;
+<<<<<<< HEAD
+>>>>>>> parent of 0f18ab0... Working on textures
+=======
 >>>>>>> parent of 0f18ab0... Working on textures
 	//float3 normal : NORMAL;
 	float4 projectedCoordinate : SV_POSITION;

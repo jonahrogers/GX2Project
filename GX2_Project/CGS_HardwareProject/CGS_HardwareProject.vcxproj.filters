@@ -34,6 +34,7 @@
       <Filter>Header Files</Filter>
     </ClInclude>
 <<<<<<< HEAD
+<<<<<<< HEAD
     <ClInclude Include="..\..\..\..\..\..\Jonah%27s pc\Documents\GitHub\GX2Project\GX2_Project\CGS_HardwareProject\DDSTextureLoader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -42,5 +43,7 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="..\..\..\..\..\..\Jonah%27s pc\Documents\GitHub\GX2Project\GX2_Project\CGS_HardwareProject\greendragon.dds" />
+=======
+>>>>>>> parent of 0f18ab0... Working on textures
   </ItemGroup>
 </Project>
