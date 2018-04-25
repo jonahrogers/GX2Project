@@ -164,18 +164,14 @@
     </FxCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\..\..\..\Jonah%27s pc\Documents\GitHub\GX2Project\GX2_Project\CGS_HardwareProject\DDSTextureLoader.cpp" />
+    <ClCompile Include="..\..\..\..\..\..\Jonah%27s pc\Documents\GitHub\GX2ProjectClone\GX2_Project\CGS_HardwareProject\DDSTextureLoader.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="XTime.cpp" />
   </ItemGroup>
   <ItemGroup>
-<<<<<<< HEAD
-<<<<<<< HEAD
-    <ClInclude Include="..\..\..\..\..\..\Jonah%27s pc\Documents\GitHub\GX2Project\GX2_Project\CGS_HardwareProject\DDSTextureLoader.h" />
-=======
->>>>>>> parent of 0f18ab0... Working on textures
-=======
->>>>>>> parent of 0f18ab0... Working on textures
+    <ClInclude Include="..\..\..\..\..\..\Jonah%27s pc\Documents\GitHub\GX2ProjectClone\GX2_Project\CGS_HardwareProject\Barrel.h" />
+    <ClInclude Include="..\..\..\..\..\..\Jonah%27s pc\Documents\GitHub\GX2ProjectClone\GX2_Project\CGS_HardwareProject\DDSTextureLoader.h" />
+    <ClInclude Include="..\..\..\..\..\..\Jonah%27s pc\Documents\GitHub\GX2ProjectClone\GX2_Project\CGS_HardwareProject\greendragon.h" />
     <ClInclude Include="XTime.h" />
   </ItemGroup>
   <ItemGroup>
@@ -191,9 +187,6 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
     </FxCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <Image Include="..\..\..\..\..\..\Jonah%27s pc\Documents\GitHub\GX2Project\GX2_Project\CGS_HardwareProject\greendragon.dds" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

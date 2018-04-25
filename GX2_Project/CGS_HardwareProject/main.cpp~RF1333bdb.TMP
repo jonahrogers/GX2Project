@@ -98,35 +98,35 @@ class DEMO_APP
 	POINT tempPointDown = { MININT, MININT };
 	DirectX::XMMATRIX projectionMatrix;
 
-	//struct LIGHT
-	//{
-	//	DirectX::XMFLOAT3 lightDirection;
-	//	DirectX::XMFLOAT4 lightPosition;
-	//	DirectX::XMFLOAT4 ambientColor;
-	//};
-
+	// TODO: PART 3 STEP 2b
 	struct SEND_TO_VRAM
 	{
 		DirectX::XMMATRIX worldMatrix;
 		DirectX::XMMATRIX viewMatrix;
 		DirectX::XMMATRIX projectionMatrix;
 
-		//LIGHT light[3];
 		DirectX::XMFLOAT3 lightDirection;
 		DirectX::XMFLOAT4 lightPosition;
 		DirectX::XMFLOAT4 ambientColor;
 	};
 
-	//struct SEND_TO_PS
-	//{
-	//	DirectX::XMFLOAT4 ambientColor;
-	//	DirectX::XMFLOAT4 diffuseColor;
-	//	DirectX::XMFLOAT3 lightDirection;
-	//	float padding;
-	//};
+	struct SEND_TO_PS
+	{
+		DirectX::XMFLOAT4 ambientColor;
+		DirectX::XMFLOAT4 diffuseColor;
+		DirectX::XMFLOAT3 lightDirection;
+		float padding;
+	};
+
+	struct SCENE_TO_SEND
+	{
+		DirectX::XMMATRIX viewMatrix;
+		DirectX::XMFLOAT4X4 projectionMatrix;
+	};
 
 	// TODO: PART 3 STEP 4a
 	SEND_TO_VRAM toShader;
+	SCENE_TO_SEND toSceneShader;
 
 public:
 	// BEGIN PART 2
@@ -136,6 +136,7 @@ public:
 		DirectX::XMFLOAT3 pos;
 		DirectX::XMFLOAT3 normal;
 		DirectX::XMFLOAT2 texCoords;
+		//DirectX::XMFLOAT4 color;
 	};
 
 	DEMO_APP(HINSTANCE hinst, WNDPROC proc);
@@ -237,7 +238,6 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	swapChainDesc.OutputWindow = window;
 	swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 	swapChainDesc.SampleDesc.Count = 1;
-	//swapChainDesc.SampleDesc.Quality = D3D11_STANDARD_MULTISAMPLE_PATTERN;
 	swapChainDesc.Windowed = true;
 
 	// TODO: PART 1 STEP 3b
@@ -267,11 +267,6 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	depthDesc.MiscFlags = 0;
 
 	device->CreateTexture2D(&depthDesc, NULL, &depthBuffer);
-
-	D3D11_DEPTH_STENCIL_VIEW_DESC depthViewDesc;
-	depthViewDesc.Format = depthDesc.Format;
-	depthViewDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DMS;
-	depthViewDesc.Texture2D.MipSlice = 0;
 
 	device->CreateDepthStencilView(depthBuffer, NULL, &dsv);
 
@@ -377,7 +372,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	result = CreateDDSTextureFromFile(device, L"Barrel.dds", nullptr, &barrelDiffuseView);
 
 	D3D11_SAMPLER_DESC barrelSampDesc;
-	ZeroMemory(&barrelSampDesc, sizeof(barrelSampDesc));
+	ZeroMemory(&sampDesc, sizeof(sampDesc));
 	barrelSampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
 	barrelSampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
 	barrelSampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
@@ -484,7 +479,9 @@ bool DEMO_APP::Run()
 	{
 		cameraTimer += time.SmoothDelta();
 	}
+	// END PART 4
 
+	// TODO: PART 1 STEP 7a
 	context->OMSetRenderTargets(1, &rtv, dsv);
 
 	// TODO: PART 1 STEP 7b
@@ -506,21 +503,13 @@ bool DEMO_APP::Run()
 	toShader.viewMatrix = viewMatrix;
 	toShader.projectionMatrix = projectionMatrix;
 
-	toShader.lightDirection = DirectX::XMFLOAT3(0.3f, -1.0f, sin(timer));
-	//toShader.lightPosition = DirectX::XMFLOAT4(sin(timer * 2), sin(timer * 0.8f), 2.0f, 1.0f);
+	toShader.lightDirection = DirectX::XMFLOAT3(0.3, -1.0f, 0.3f);
+	DirectX::XMMATRIX tempMatrix = DirectX::XMMatrixMultiply(DirectX::XMMatrixTranslation(0.5f, 0.5f, 0.0f), DirectX::XMMatrixRotationZ(timer));
+	toShader.lightPosition.x = 0.0f;//tempMatrix.r[3].m128_f32[0];
+	toShader.lightPosition.y = 0.0f;//tempMatrix.r[3].m128_f32[1];
+	toShader.lightPosition.z = 2.0f;//tempMatrix.r[3].m128_f32[2];
+	toShader.lightPosition.w = 1;
 	toShader.ambientColor = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-
-	//toShader.light[0].lightPosition = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
-	//toShader.light[0].lightDirection = DirectX::XMFLOAT3(-0.3f, -0.3f, -0.3f);
-	//toShader.light[0].ambientColor = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-	//toShader.light[1].lightPosition = DirectX::XMFLOAT4(sin(timer), 2.0f, 0.5f, 1.0f);
-	//toShader.light[1].lightDirection = DirectX::XMFLOAT3(0.3f, 0.3f, 0.3f);
-	//toShader.light[1].ambientColor = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-	//toShader.light[2].lightPosition = DirectX::XMFLOAT4(sin(timer * 2), sin(timer * 0.8f), 2.0f, 1.0f);
-	//toShader.light[2].lightDirection = DirectX::XMFLOAT3(0.3f, 1.0f, 0.3f);
-	//toShader.light[2].ambientColor = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-
-
 
 	timer += time.SmoothDelta();
 
@@ -566,6 +555,7 @@ bool DEMO_APP::Run()
 	context->Unmap(cBuffer, NULL);
 
 	context->DrawIndexed(36, 0, 0);
+	// END PART 2
 
 	context->IASetVertexBuffers(0, 1, &barrelBuffer, &stride, &offset);
 	context->IASetIndexBuffer(barrelIndexBuffer, DXGI_FORMAT_R16_UINT, offset);
@@ -573,7 +563,7 @@ bool DEMO_APP::Run()
 	context->PSSetShaderResources(0, 1, &barrelDiffuseView);
 	context->PSSetSamplers(0, 1, &barrelSamplerState);
 
-	worldMatrix3 = DirectX::XMMatrixTranslation(0.0f, 2.0f, 0.0f);
+	worldMatrix3 = DirectX::XMMatrixTranslation(0.0f, 5.0f, 0.0f);
 	worldMatrix3 = DirectX::XMMatrixMultiply(DirectX::XMMatrixScaling(0.05f, 0.05f, 0.05f), worldMatrix3);
 	toShader.worldMatrix = worldMatrix3;
 
@@ -584,8 +574,10 @@ bool DEMO_APP::Run()
 
 	context->DrawIndexed(ARRAYSIZE(Barrel_indicies), 0, 0);
 
+	// TODO: PART 1 STEP 8
 	swapChain->Present(0, 0);
 
+	// END OF PART 1
 	return true;
 }
 
@@ -595,6 +587,7 @@ bool DEMO_APP::Run()
 
 bool DEMO_APP::ShutDown()
 {
+	// TODO: PART 1 STEP 6
 	device->Release();
 	swapChain->Release();
 	rtv->Release();
@@ -666,6 +659,7 @@ LRESULT CALLBACK DEMO_APP::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
 			myApp->backBuffer_width = tempSwapDesc.BufferDesc.Width;
 			myApp->backBuffer_height = tempSwapDesc.BufferDesc.Height;
 
+			//D3D11_VIEWPORT vp;
 			myApp->viewport.Width = myApp->backBuffer_width;
 			myApp->viewport.Height = myApp->backBuffer_height;
 			myApp->viewport.MinDepth = 0.0f;
