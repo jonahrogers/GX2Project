@@ -15,31 +15,19 @@ struct OUTPUT_VERTEX
 	float4 worldPos : POSITION;
 };
 
-//struct LIGHT
-//{
-//	float3 lightDirection;
-//	float4 lightPosition;
-//	float4 ambientColor;
-//};
+struct LIGHTS
+{
+	float3 lightDirection;
+	float padding;
+	float4 lightPosition;
+	float4 lightColor;
+};
 
-// TODO: PART 3 STEP 2a
 cbuffer THIS_IS_VRAM : register(b0)
 {
 	float4x4 worldMatrix;
 	float4x4 viewMatrix;
 	float4x4 projectionMatrix;
-
-	//LIGHT light[3];
-	float3 lightDirection;
-	float4 lightPosition;
-	float4 ambientColor;
-};
-
-cbuffer SCENE : register(b1)
-{
-	//NF3D_LIGHT_OMNIDIRECTIONAL light;
-	//float4x4 viewMatrix;
-	//float4x4 projectionMatrix;
 }
 
 OUTPUT_VERTEX main(INPUT_VERTEX fromVertexBuffer)

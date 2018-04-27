@@ -27,15 +27,11 @@
 
 using namespace std;
 
-// BEGIN PART 1
-// TODO: PART 1 STEP 1a
 #include <d3d11.h>
 #pragma comment(lib, "d3d11");
 
-// TODO: PART 1 STEP 1b
 #include <DirectXMath.h>
 
-// TODO: PART 2 STEP 6
 #include "Trivial_PS.csh"
 #include "Trivial_VS.csh"
 
@@ -62,7 +58,6 @@ class DEMO_APP
 	float backBuffer_width = 500;
 	float backBuffer_height = 500;
 
-	// TODO: PART 2 STEP 2
 	ID3D11Buffer* buffer;
 
 	ID3D11InputLayout* inputLayout;
@@ -84,8 +79,10 @@ class DEMO_APP
 
 	// BEGIN PART 3
 	// TODO: PART 3 STEP 1
-	ID3D11Buffer* cBuffer;
-	D3D11_BUFFER_DESC cBufferDesc = {};
+	ID3D11Buffer* cBufferVS;
+	D3D11_BUFFER_DESC cBufferVSDesc = {};
+	ID3D11Buffer* cBufferPS;
+	D3D11_BUFFER_DESC cBufferPSDesc = {};
 	XTime time;
 	float timer = 0.0;
 	float cameraTimer = 0.0;
@@ -98,35 +95,30 @@ class DEMO_APP
 	POINT tempPointDown = { MININT, MININT };
 	DirectX::XMMATRIX projectionMatrix;
 
-	//struct LIGHT
-	//{
-	//	DirectX::XMFLOAT3 lightDirection;
-	//	DirectX::XMFLOAT4 lightPosition;
-	//	DirectX::XMFLOAT4 ambientColor;
-	//};
+	struct LIGHTS
+	{
+		DirectX::XMFLOAT3 lightDirection;
+		float padding;
+		DirectX::XMFLOAT4 lightPosition;
+		DirectX::XMFLOAT4 lightColor;
+	};
 
-	struct SEND_TO_VRAM
+	struct SEND_TO_VS
 	{
 		DirectX::XMMATRIX worldMatrix;
 		DirectX::XMMATRIX viewMatrix;
 		DirectX::XMMATRIX projectionMatrix;
+	};
 
-		//LIGHT light[3];
-		DirectX::XMFLOAT3 lightDirection;
-		DirectX::XMFLOAT4 lightPosition;
+	struct SEND_TO_PS
+	{
+		LIGHTS lights[3];
 		DirectX::XMFLOAT4 ambientColor;
 	};
 
-	//struct SEND_TO_PS
-	//{
-	//	DirectX::XMFLOAT4 ambientColor;
-	//	DirectX::XMFLOAT4 diffuseColor;
-	//	DirectX::XMFLOAT3 lightDirection;
-	//	float padding;
-	//};
-
 	// TODO: PART 3 STEP 4a
-	SEND_TO_VRAM toShader;
+	SEND_TO_VS toVSShader;
+	SEND_TO_PS toPSShader;
 
 public:
 	// BEGIN PART 2
@@ -402,12 +394,19 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	device->CreateInputLayout(vLayout, ARRAYSIZE(vLayout), Trivial_VS, sizeof(Trivial_VS), &inputLayout);
 
 	// TODO: PART 3 STEP 3
-	cBufferDesc.Usage = D3D11_USAGE_DYNAMIC;
-	cBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-	cBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-	cBufferDesc.ByteWidth = sizeof(SEND_TO_VRAM);
+	cBufferVSDesc.Usage = D3D11_USAGE_DYNAMIC;
+	cBufferVSDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	cBufferVSDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	cBufferVSDesc.ByteWidth = sizeof(SEND_TO_VS);
 
-	device->CreateBuffer(&cBufferDesc, NULL, &cBuffer);
+	device->CreateBuffer(&cBufferVSDesc, NULL, &cBufferVS);
+
+	cBufferPSDesc.Usage = D3D11_USAGE_DYNAMIC;
+	cBufferPSDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	cBufferPSDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	cBufferPSDesc.ByteWidth = sizeof(SEND_TO_VS);
+
+	device->CreateBuffer(&cBufferPSDesc, NULL, &cBufferPS);
 
 	// TODO: PART 3 STEP 4b
 	worldMatrix1 = DirectX::XMMatrixIdentity();
@@ -496,44 +495,38 @@ bool DEMO_APP::Run()
 	context->ClearRenderTargetView(rtv, arr);
 	context->ClearDepthStencilView(dsv, D3D11_CLEAR_DEPTH, 1.0f, 1.0f);
 
-	// END PART 5
-
-	// TODO: PART 3 STEP 5
 	worldMatrix1 = DirectX::XMMatrixTranslation(0.0f, 0.25f, 0.0f);//DirectX::XMMatrixMultiply(DirectX::XMMatrixRotationY(-timer), DirectX::XMMatrixTranslation(0.0f, 0.25f, 0.0f));
 	worldMatrix1 = DirectX::XMMatrixMultiply(DirectX::XMMatrixScaling(10.0f, 1.0f, 10.0f), worldMatrix1);
-	toShader.worldMatrix = worldMatrix1;
+	toVSShader.worldMatrix = worldMatrix1;
 	viewMatrix = DirectX::XMMatrixInverse(nullptr, cameraMatrix);
-	toShader.viewMatrix = viewMatrix;
-	toShader.projectionMatrix = projectionMatrix;
+	toVSShader.viewMatrix = viewMatrix;
+	toVSShader.projectionMatrix = projectionMatrix;
 
-	toShader.lightDirection = DirectX::XMFLOAT3(0.3f, -1.0f, sin(timer));
-	//toShader.lightPosition = DirectX::XMFLOAT4(sin(timer * 2), sin(timer * 0.8f), 2.0f, 1.0f);
-	toShader.ambientColor = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-
-	//toShader.light[0].lightPosition = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
-	//toShader.light[0].lightDirection = DirectX::XMFLOAT3(-0.3f, -0.3f, -0.3f);
-	//toShader.light[0].ambientColor = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-	//toShader.light[1].lightPosition = DirectX::XMFLOAT4(sin(timer), 2.0f, 0.5f, 1.0f);
-	//toShader.light[1].lightDirection = DirectX::XMFLOAT3(0.3f, 0.3f, 0.3f);
-	//toShader.light[1].ambientColor = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-	//toShader.light[2].lightPosition = DirectX::XMFLOAT4(sin(timer * 2), sin(timer * 0.8f), 2.0f, 1.0f);
-	//toShader.light[2].lightDirection = DirectX::XMFLOAT3(0.3f, 1.0f, 0.3f);
-	//toShader.light[2].ambientColor = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-
-
+	toPSShader.lights[0].lightPosition = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+	toPSShader.lights[0].lightDirection = DirectX::XMFLOAT3(-0.3f, -sin(timer * 0.6f), -0.3f);
+	toPSShader.lights[0].lightColor = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	toPSShader.lights[1].lightPosition = DirectX::XMFLOAT4(0.0f, sin(timer * 1.2f) + 1.5f, 0.0f, 1.0f);
+	toPSShader.lights[1].lightDirection = DirectX::XMFLOAT3(0.3f, 0.3f, 0.3f);
+	toPSShader.lights[1].lightColor = DirectX::XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f);
+	toPSShader.lights[2].lightPosition = DirectX::XMFLOAT4(sin(timer * 2), 2.0f, sin(timer * 0.8f), 1.0f);
+	toPSShader.lights[2].lightDirection = DirectX::XMFLOAT3(0.3f, -1.0f, 0.3f);
+	toPSShader.lights[2].lightColor = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	toPSShader.ambientColor = DirectX::XMFLOAT4(0.2f, 0.2f, 0.2f, 1.0f);
 
 	timer += time.SmoothDelta();
 
 	D3D11_MAPPED_SUBRESOURCE ms;
-	context->Map(cBuffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
-	memcpy(ms.pData, &toShader, sizeof(toShader));
-	context->Unmap(cBuffer, NULL);
+	context->Map(cBufferVS, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
+	memcpy(ms.pData, &toVSShader, sizeof(toVSShader));
+	context->Unmap(cBufferVS, NULL);
 
-	// TODO: PART 3 STEP 6
-	context->VSSetConstantBuffers(0, 1, &cBuffer);
-	context->PSSetConstantBuffers(0, 1, &cBuffer);
+	context->Map(cBufferPS, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
+	memcpy(ms.pData, &toPSShader, sizeof(toPSShader));
+	context->Unmap(cBufferPS, NULL);
 
-	// TODO: PART 2 STEP 9a
+	context->VSSetConstantBuffers(0, 1, &cBufferVS);
+	context->PSSetConstantBuffers(1, 1, &cBufferPS);
+
 	UINT stride = sizeof(SIMPLE_VERTEX);
 	UINT offset = 0;
 	context->IASetVertexBuffers(0, 1, &buffer, &stride, &offset);
@@ -558,12 +551,11 @@ bool DEMO_APP::Run()
 	worldMatrix2 = DirectX::XMMatrixMultiply(DirectX::XMMatrixTranslation(2.0f, 0.25f, 0.0f), DirectX::XMMatrixRotationZ(timer * 0.8f));
 	worldMatrix2 = DirectX::XMMatrixMultiply(DirectX::XMMatrixMultiply(DirectX::XMMatrixMultiply(DirectX::XMMatrixRotationX(timer * 0.2f), DirectX::XMMatrixRotationY(timer * 1.5f)), DirectX::XMMatrixRotationZ(timer * 0.8f)), worldMatrix2);
 	worldMatrix2 = DirectX::XMMatrixMultiply(DirectX::XMMatrixScaling(0.5f, 0.5f, 0.5f), worldMatrix2);
-	toShader.worldMatrix = worldMatrix2;
+	toVSShader.worldMatrix = worldMatrix2;
 
-	D3D11_MAPPED_SUBRESOURCE ms2;
-	context->Map(cBuffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms2);
-	memcpy(ms2.pData, &toShader, sizeof(toShader));
-	context->Unmap(cBuffer, NULL);
+	context->Map(cBufferVS, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
+	memcpy(ms.pData, &toVSShader, sizeof(toVSShader));
+	context->Unmap(cBufferVS, NULL);
 
 	context->DrawIndexed(36, 0, 0);
 
@@ -573,14 +565,13 @@ bool DEMO_APP::Run()
 	context->PSSetShaderResources(0, 1, &barrelDiffuseView);
 	context->PSSetSamplers(0, 1, &barrelSamplerState);
 
-	worldMatrix3 = DirectX::XMMatrixTranslation(0.0f, 2.0f, 0.0f);
+	worldMatrix3 = DirectX::XMMatrixTranslation(0.0f, 1.0f, 0.0f);
 	worldMatrix3 = DirectX::XMMatrixMultiply(DirectX::XMMatrixScaling(0.05f, 0.05f, 0.05f), worldMatrix3);
-	toShader.worldMatrix = worldMatrix3;
+	toVSShader.worldMatrix = worldMatrix3;
 
-	D3D11_MAPPED_SUBRESOURCE ms3;
-	context->Map(cBuffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms3);
-	memcpy(ms3.pData, &toShader, sizeof(toShader));
-	context->Unmap(cBuffer, NULL);
+	context->Map(cBufferVS, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
+	memcpy(ms.pData, &toVSShader, sizeof(toVSShader));
+	context->Unmap(cBufferVS, NULL);
 
 	context->DrawIndexed(ARRAYSIZE(Barrel_indicies), 0, 0);
 
@@ -599,7 +590,7 @@ bool DEMO_APP::ShutDown()
 	swapChain->Release();
 	rtv->Release();
 	context->Release();
-	cBuffer->Release();
+	cBufferVS->Release();
 	buffer->Release();
 	ps->Release();
 	vs->Release();

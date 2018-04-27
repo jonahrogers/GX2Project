@@ -10,52 +10,51 @@ texture2D baseTexture : register(t0);
 
 SamplerState baseFilter : register(s0);
 
-//struct LIGHT
-//{
-//	float3 lightDirection;
-//	float4 lightPosition;
-//	float4 ambientColor;
-//};
-
-cbuffer THIS_IS_VRAM : register(b0)
+struct LIGHTS
 {
-	float4x4 worldMatrix;
-	float4x4 viewMatrix;
-	float4x4 projectionMatrix;
-
-	//LIGHT light[3];
 	float3 lightDirection;
+	float padding;
 	float4 lightPosition;
+	float4 lightColor;
+};
+
+cbuffer THIS_IS_VRAM2 : register(b1)
+{
+	LIGHTS lights[3];
 	float4 ambientColor;
 }
 
 float4 main(OUTPUT_VERTEX vertex ) : SV_TARGET
 {
 	float4 color = baseTexture.Sample(baseFilter, vertex.texOut);
-	
-	float4 ambient = float4(0.2f, 0.2f, 0.2f, 1.0f);
 
 	//for directional light
-	float3 lightDir = normalize(-lightDirection);
+	float3 lightDir = -normalize(lights[0].lightDirection);
 	float lightRatioDir = saturate(dot(lightDir, vertex.normal));
-	lightRatioDir = saturate(lightRatioDir + ambient);
-	color = lightRatioDir * ambientColor * color;
-
+	lightRatioDir = saturate(lightRatioDir + ambientColor);
+	float4 dirColor = lightRatioDir * lights[0].lightColor;
+	
 	// for point light
-	//float3 lightPoint = (normalize(light[1].lightPosition - vertex.worldPos)).xyz;
-	//float lightRatioPoint = saturate(dot(lightPoint, vertex.normal));
-	//float attenuationPoint = 1.0 - saturate(length(light[1].lightPosition.xyz - vertex.worldPos.xyz) / 2.5f);
-	//lightRatioPoint = saturate((lightRatioPoint * attenuationPoint));// + ambient);
-	//float4 pointColor = lightRatioPoint * light[1].ambientColor;// *color;
+	float3 lightPoint = (normalize(lights[1].lightPosition - vertex.worldPos)).xyz;
+	float lightRatioPoint = saturate(dot(lightPoint, vertex.normal));
+	float attenuationPoint = 1.0f - saturate(length(lights[1].lightPosition.xyz - vertex.worldPos.xyz) / 2.5f);
+	lightRatioPoint = saturate((lightRatioPoint * attenuationPoint));
+	float4 pointColor = lightRatioPoint * lights[1].lightColor;
 
 	//for spot light
-	//float3 lightSpot = normalize(light[2].lightPosition.xyz - vertex.worldPos.xyz);
-	//float surfaceRatio = saturate(dot(-lightSpot, lightDir));
-	//float spotFactor = (surfaceRatio > 20) ? 1 : 0;
-	//float lightRatioSpot = saturate(dot(lightSpot, vertex.normal));
-	//float attenuationSpot = 1.0 - saturate((0.6f - surfaceRatio) / (0.6f - 0.5f));
-	//lightRatioSpot = saturate((lightRatioSpot * attenuationSpot));// +ambient);
-	//float4 spotColor = surfaceRatio * lightRatioSpot * light[2].ambientColor;// * color;
+	float3 lightSpot = normalize(lights[2].lightPosition.xyz - vertex.worldPos.xyz);
+	float surfaceRatio = saturate(dot(-lightSpot, lights[2].lightDirection));
+	float spotFactor;
+	if (surfaceRatio > -1)
+		spotFactor = 1;
+	else
+		spotFactor = 0;
+	float lightRatioSpot = saturate(dot(lightSpot, vertex.normal));
+	float attenuationSpot = 1.0f - saturate((1.0f - surfaceRatio) / (1.0f - 0.9f));
+	lightRatioSpot = saturate((lightRatioSpot * attenuationSpot));
+	float4 spotColor = spotFactor * lightRatioSpot * lights[2].lightColor;
+
+	color = (dirColor + pointColor + spotColor) * color;
 
 	color = saturate(color);
 
