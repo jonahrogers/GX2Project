@@ -25,6 +25,8 @@
 #define TID_POLLMOUSE 100
 #define MOUSE_POLL_DELAY 5
 
+#define NUM_OF_MATRICIES 3
+
 using namespace std;
 
 #include <d3d11.h>
@@ -87,9 +89,10 @@ class DEMO_APP
 	float timer = 0.0;
 	float cameraTimer = 0.0;
 
-	DirectX::XMMATRIX worldMatrix1; //big cube
-	DirectX::XMMATRIX worldMatrix2; //smaller cube
-	DirectX::XMMATRIX worldMatrix3; //barrel
+	DirectX::XMMATRIX worldMatricies[NUM_OF_MATRICIES];
+	//DirectX::XMMATRIX worldMatrix1; //big cube
+	//DirectX::XMMATRIX worldMatrix2; //smaller cube
+	//DirectX::XMMATRIX worldMatrix3; //barrel
 	DirectX::XMMATRIX viewMatrix;
 	DirectX::XMMATRIX cameraMatrix;
 	POINT tempPointDown = { MININT, MININT };
@@ -136,10 +139,71 @@ public:
 
 	static LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wparam, LPARAM lparam);
 
+	void CheckCameraInput();
 	bool LoadObjHeader();
+
 };
 
 DEMO_APP* myApp = nullptr;
+
+void DEMO_APP::CheckCameraInput()
+{
+	if (cameraTimer >= 0.025f)
+	{
+		if (GetAsyncKeyState(0x57)) // 'W'
+		{
+			DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(0.0f, 0.0f, 0.05f);
+
+			cameraMatrix = DirectX::XMMatrixMultiply(cameraMatrix, tempM);
+
+			cameraTimer = 0.0f;
+		}
+		if (GetAsyncKeyState(0x41)) // 'A'
+		{
+			DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(-0.05f, 0.0f, 0.0f);
+
+			cameraMatrix = DirectX::XMMatrixMultiply(cameraMatrix, tempM);
+
+			cameraTimer = 0.0f;
+		}
+		if (GetAsyncKeyState(0x53)) // 'S'
+		{
+			DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(0.0f, 0.0f, -0.05f);
+
+			cameraMatrix = DirectX::XMMatrixMultiply(cameraMatrix, tempM);
+
+			cameraTimer = 0.0f;
+		}
+		if (GetAsyncKeyState(0x44)) // 'D'
+		{
+			DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(0.05f, 0.0f, 0.0f);
+
+			cameraMatrix = DirectX::XMMatrixMultiply(cameraMatrix, tempM);
+
+			cameraTimer = 0.0f;
+		}
+		if (GetAsyncKeyState(0x51)) // 'Q'
+		{
+			DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(0.0f, 0.05f, 0.0f);
+
+			cameraMatrix = DirectX::XMMatrixMultiply(cameraMatrix, tempM);
+
+			cameraTimer = 0.0f;
+		}
+		if (GetAsyncKeyState(0x45)) // 'E'
+		{
+			DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(0.0f, -0.05f, 0.0f);
+
+			cameraMatrix = DirectX::XMMatrixMultiply(cameraMatrix, tempM);
+
+			cameraTimer = 0.0f;
+		}
+	}
+	else
+	{
+		cameraTimer += time.SmoothDelta();
+	}
+}
 
 bool DEMO_APP::LoadObjHeader()
 {
@@ -409,9 +473,9 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	device->CreateBuffer(&cBufferPSDesc, NULL, &cBufferPS);
 
 	// TODO: PART 3 STEP 4b
-	worldMatrix1 = DirectX::XMMatrixIdentity();
-	worldMatrix2 = DirectX::XMMatrixIdentity();
-	worldMatrix3 = DirectX::XMMatrixIdentity();
+	worldMatricies[0] = DirectX::XMMatrixIdentity();
+	worldMatricies[1] = DirectX::XMMatrixIdentity();
+	worldMatricies[2] = DirectX::XMMatrixIdentity();
 	cameraMatrix = DirectX::XMMatrixRotationX(-18.0f);
 	cameraMatrix = DirectX::XMMatrixMultiply(DirectX::XMMatrixTranslation(0, 0, -5.0f), cameraMatrix);
 	viewMatrix = DirectX::XMMatrixInverse(nullptr, cameraMatrix);
@@ -428,61 +492,7 @@ bool DEMO_APP::Run()
 {
 	time.Signal();
 
-	if (cameraTimer >= 0.025f)
-	{
-		if (GetAsyncKeyState(0x57)) // 'W'
-		{
-			DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(0.0f, 0.0f, 0.05f);
-
-			cameraMatrix = DirectX::XMMatrixMultiply(tempM, cameraMatrix);
-
-			cameraTimer = 0.0f;
-		}
-		if (GetAsyncKeyState(0x41)) // 'A'
-		{
-			DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(-0.05f, 0.0f, 0.0f);
-
-			cameraMatrix = DirectX::XMMatrixMultiply(tempM, cameraMatrix);
-
-			cameraTimer = 0.0f;
-		}
-		if (GetAsyncKeyState(0x53)) // 'S'
-		{
-			DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(0.0f, 0.0f, -0.05f);
-
-			cameraMatrix = DirectX::XMMatrixMultiply(tempM, cameraMatrix);
-
-			cameraTimer = 0.0f;
-		}
-		if (GetAsyncKeyState(0x44)) // 'D'
-		{
-			DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(0.05f, 0.0f, 0.0f);
-
-			cameraMatrix = DirectX::XMMatrixMultiply(tempM, cameraMatrix);
-
-			cameraTimer = 0.0f;
-		}
-		if (GetAsyncKeyState(0x51)) // 'Q'
-		{
-			DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(0.0f, 0.05f, 0.0f);
-
-			cameraMatrix = DirectX::XMMatrixMultiply(cameraMatrix, tempM);
-
-			cameraTimer = 0.0f;
-		}
-		if (GetAsyncKeyState(0x45)) // 'E'
-		{
-			DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(0.0f, -0.05f, 0.0f);
-
-			cameraMatrix = DirectX::XMMatrixMultiply(cameraMatrix, tempM);
-
-			cameraTimer = 0.0f;
-		}
-	}
-	else
-	{
-		cameraTimer += time.SmoothDelta();
-	}
+	CheckCameraInput();
 
 	context->OMSetRenderTargets(1, &rtv, dsv);
 
@@ -495,9 +505,9 @@ bool DEMO_APP::Run()
 	context->ClearRenderTargetView(rtv, arr);
 	context->ClearDepthStencilView(dsv, D3D11_CLEAR_DEPTH, 1.0f, 1.0f);
 
-	worldMatrix1 = DirectX::XMMatrixTranslation(0.0f, 0.25f, 0.0f);//DirectX::XMMatrixMultiply(DirectX::XMMatrixRotationY(-timer), DirectX::XMMatrixTranslation(0.0f, 0.25f, 0.0f));
-	worldMatrix1 = DirectX::XMMatrixMultiply(DirectX::XMMatrixScaling(10.0f, 1.0f, 10.0f), worldMatrix1);
-	toVSShader.worldMatrix = worldMatrix1;
+	worldMatricies[0] = DirectX::XMMatrixTranslation(0.0f, 0.25f, 0.0f);//DirectX::XMMatrixMultiply(DirectX::XMMatrixRotationY(-timer), DirectX::XMMatrixTranslation(0.0f, 0.25f, 0.0f));
+	worldMatricies[0] = DirectX::XMMatrixMultiply(DirectX::XMMatrixScaling(10.0f, 1.0f, 10.0f), worldMatricies[0]);
+	toVSShader.worldMatrix = worldMatricies[0];
 	viewMatrix = DirectX::XMMatrixInverse(nullptr, cameraMatrix);
 	toVSShader.viewMatrix = viewMatrix;
 	toVSShader.projectionMatrix = projectionMatrix;
@@ -548,10 +558,10 @@ bool DEMO_APP::Run()
 	// TODO: PART 2 STEP 10
 	context->DrawIndexed(36, 0, 0);
 
-	worldMatrix2 = DirectX::XMMatrixMultiply(DirectX::XMMatrixTranslation(2.0f, 0.25f, 0.0f), DirectX::XMMatrixRotationZ(timer * 0.8f));
-	worldMatrix2 = DirectX::XMMatrixMultiply(DirectX::XMMatrixMultiply(DirectX::XMMatrixMultiply(DirectX::XMMatrixRotationX(timer * 0.2f), DirectX::XMMatrixRotationY(timer * 1.5f)), DirectX::XMMatrixRotationZ(timer * 0.8f)), worldMatrix2);
-	worldMatrix2 = DirectX::XMMatrixMultiply(DirectX::XMMatrixScaling(0.5f, 0.5f, 0.5f), worldMatrix2);
-	toVSShader.worldMatrix = worldMatrix2;
+	worldMatricies[1] = DirectX::XMMatrixMultiply(DirectX::XMMatrixTranslation(2.0f, 0.25f, 0.0f), DirectX::XMMatrixRotationZ(timer * 0.8f));
+	worldMatricies[1] = DirectX::XMMatrixMultiply(DirectX::XMMatrixMultiply(DirectX::XMMatrixMultiply(DirectX::XMMatrixRotationX(timer * 0.2f), DirectX::XMMatrixRotationY(timer * 1.5f)), DirectX::XMMatrixRotationZ(timer * 0.8f)), worldMatricies[1]);
+	worldMatricies[1] = DirectX::XMMatrixMultiply(DirectX::XMMatrixScaling(0.5f, 0.5f, 0.5f), worldMatricies[1]);
+	toVSShader.worldMatrix = worldMatricies[1];
 
 	context->Map(cBufferVS, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
 	memcpy(ms.pData, &toVSShader, sizeof(toVSShader));
@@ -565,9 +575,9 @@ bool DEMO_APP::Run()
 	context->PSSetShaderResources(0, 1, &barrelDiffuseView);
 	context->PSSetSamplers(0, 1, &barrelSamplerState);
 
-	worldMatrix3 = DirectX::XMMatrixTranslation(0.0f, 1.0f, 0.0f);
-	worldMatrix3 = DirectX::XMMatrixMultiply(DirectX::XMMatrixScaling(0.05f, 0.05f, 0.05f), worldMatrix3);
-	toVSShader.worldMatrix = worldMatrix3;
+	worldMatricies[2] = DirectX::XMMatrixTranslation(0.0f, 1.0f, 0.0f);
+	worldMatricies[2] = DirectX::XMMatrixMultiply(DirectX::XMMatrixScaling(0.05f, 0.05f, 0.05f), worldMatricies[2]);
+	toVSShader.worldMatrix = worldMatricies[2];
 
 	context->Map(cBufferVS, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
 	memcpy(ms.pData, &toVSShader, sizeof(toVSShader));
