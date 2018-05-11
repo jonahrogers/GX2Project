@@ -172,9 +172,27 @@
     <ClInclude Include="..\..\..\..\..\..\Jonah%27s pc\Documents\GitHub\GX2ProjectClone\GX2_Project\CGS_HardwareProject\Barrel.h" />
     <ClInclude Include="..\..\..\..\..\..\Jonah%27s pc\Documents\GitHub\GX2ProjectClone\GX2_Project\CGS_HardwareProject\DDSTextureLoader.h" />
     <ClInclude Include="..\..\..\..\..\..\Jonah%27s pc\Documents\GitHub\GX2ProjectClone\GX2_Project\CGS_HardwareProject\greendragon.h" />
+    <ClInclude Include="..\..\..\..\..\..\Jonah%27s pc\Documents\GitHub\GX2Project\GX2_Project\CGS_HardwareProject\3d_planet.h" />
+    <ClInclude Include="..\..\..\..\..\..\Jonah%27s pc\Documents\GitHub\GX2Project\GX2_Project\CGS_HardwareProject\StoneHenge.h" />
     <ClInclude Include="XTime.h" />
   </ItemGroup>
   <ItemGroup>
+    <FxCompile Include="..\..\..\..\..\..\Jonah%27s pc\Documents\GitHub\GX2Project\GX2_Project\CGS_HardwareProject\RTT_PS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+    </FxCompile>
+    <FxCompile Include="..\..\..\..\..\..\Jonah%27s pc\Documents\GitHub\GX2Project\GX2_Project\CGS_HardwareProject\SkyBox_PS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+    </FxCompile>
+    <FxCompile Include="..\..\..\..\..\..\Jonah%27s pc\Documents\GitHub\GX2Project\GX2_Project\CGS_HardwareProject\SkyBox_VS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+    </FxCompile>
+    <FxCompile Include="..\..\..\..\..\..\Jonah%27s pc\Documents\GitHub\GX2Project\GX2_Project\CGS_HardwareProject\Trivial_GS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Geometry</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Geometry</ShaderType>
+    </FxCompile>
     <FxCompile Include="Trivial_PS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
