@@ -1,3 +1,4 @@
+#pragma pack_matrix(row_major)
 
 struct OUTPUT_VERTEX
 {
@@ -15,9 +16,14 @@ struct OUTPUT_GEOMETRY
 	float3 normal : NORMAL;
 	float2 texOut : TEXCOORD0;
 	float4 worldPos : POSITION;
-
-	//uint primitiveId : SV_PRIMITIVEID;
 };
+
+cbuffer THIS_IS_VRAM : register(b3)
+{
+	float4x4 worldMatrix;
+	float4x4 viewMatrix;
+	float4x4 projectionMatrix;
+}
 
 [maxvertexcount(3)]
 void main(triangle OUTPUT_VERTEX input[3], inout TriangleStream<OUTPUT_GEOMETRY> OutputStream)
@@ -26,59 +32,25 @@ void main(triangle OUTPUT_VERTEX input[3], inout TriangleStream<OUTPUT_GEOMETRY>
 
 		for (int i = 0; i < 3; ++i)
 		{
-			//output = input[i];
 			output.projectedCoordinate = input[i].projectedCoordinate;
 			output.normal = input[i].normal;
 			output.texOut = input[i].texOut;
 			output.worldPos = input[i].worldPos;
-			//output.primitiveId = primitiveId;
+			
+			if (input[i].instanceId % 2 == 0)
+			{
+				output.worldPos.z -= input[i].instanceId / 2;
+			}
+			else if (input[i].instanceId % 2 == 1)
+			{
+				output.worldPos.z -= (input[i].instanceId - 1) / 2;
 
-			output.worldPos.x -= input[i].instanceId;
-			output.projectedCoordinate.x -= input[i].instanceId;
+				output.worldPos.x -= 1;
+			}
 
-			/*if (input[i].instanceId == 1)
-			{
-				output.worldPos.x -= input[i].instanceId;
-				output.worldPos.y += input[i].instanceId;
-				output.projectedCoordinate.x -= input[i].instanceId;
-				output.projectedCoordinate.y += input[i].instanceId;
-			}
-			else if (input[i].instanceId == 2)
-			{
-				output.worldPos.x += input[i].instanceId;
-				output.worldPos.y += input[i].instanceId;
-				output.projectedCoordinate.x += input[i].instanceId;
-				output.projectedCoordinate.y += input[i].instanceId;
-			}
-			else if (input[i].instanceId == 3)
-			{
-				output.worldPos.x -= input[i].instanceId;
-				output.worldPos.y -= input[i].instanceId;
-				output.projectedCoordinate.x -= input[i].instanceId;
-				output.projectedCoordinate.y -= input[i].instanceId;
-			}
-			else if (input[i].instanceId == 4)
-			{
-				output.worldPos.x += input[i].instanceId;
-				output.worldPos.y -= input[i].instanceId;
-				output.projectedCoordinate.x += input[i].instanceId;
-				output.projectedCoordinate.y -= input[i].instanceId;
-			}*/
+			output.projectedCoordinate = mul(output.worldPos, viewMatrix);
+			output.projectedCoordinate = mul(output.projectedCoordinate, projectionMatrix);
 
 			OutputStream.Append(output);
 		}
-
-		/*OutputStream.RestartStrip();
-
-		for (int i = 0; i < 3; ++i)
-		{
-			output = input[i];
-
-			output.worldPos.x += primitiveId;
-			output.worldPos.y += primitiveId;
-
-			OutputStream.Append(output);
-		}
-
-	OutputStream.RestartStrip();*/
 }

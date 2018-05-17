@@ -4,7 +4,6 @@ struct OUTPUT_GEOMETRY
 	float3 normal : NORMAL;
 	float2 texOut : TEXCOORD0;
 	float4 worldPos : POSITION;
-	//uint primitiveId : SV_PRIMITIVEID;
 };
 
 texture2D baseTexture : register(t0);
@@ -24,7 +23,7 @@ cbuffer THIS_IS_VRAM2 : register(b1)
 {
 	LIGHTS lights[3];
 	float4 ambientColor;
-	//float4 emissiveValue;
+	float4 emissiveValue;
 }
 
 float4 main(OUTPUT_GEOMETRY vertex) : SV_TARGET
@@ -91,8 +90,8 @@ float4 main(OUTPUT_GEOMETRY vertex) : SV_TARGET
 		return color;
 	else
 	{
-			color = (dirColor + pointColor + spotColor) * color;
-
+		color = (dirColor + pointColor + spotColor) * color;
+		
 		color = saturate(color);
 
 		return color;

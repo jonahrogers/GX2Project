@@ -309,7 +309,6 @@ bool DEMO_APP::LoadObjFile(const char* path, std::vector<DirectX::XMFLOAT3>& out
 		{
 			DirectX::XMFLOAT2 uv;
 			fscanf(file, "%f %f\n", &uv.x, &uv.y);
-			uv.y *= -1;
 			temp_uvs.push_back(uv);
 		}
 		else if (strcmp(line, "vn") == 0)
@@ -368,7 +367,6 @@ bool DEMO_APP::LoadObjFile(const char* path, std::vector<DirectX::XMFLOAT3>& out
 				normal.z == tempverts[j].normal.z)
 			{
 				result = true;
-				tempIndicesV.push_back(j);
 			}
 		}
 	
@@ -383,14 +381,14 @@ bool DEMO_APP::LoadObjFile(const char* path, std::vector<DirectX::XMFLOAT3>& out
 
 			++vectorSize;
 		}
-		//else
-		//{
-		//	tempIndicesV.push_back(i);
+		else
+		{
+			tempIndicesV.push_back(i);
 
-		//	//tempverts[i].pos = vert;
-		//	//tempverts[i].texCoords = uv;
-		//	//tempverts[i].normal = normal;
-		//}
+			//tempverts[i].pos = vert;
+			//tempverts[i].texCoords = uv;
+			//tempverts[i].normal = normal;
+		}
 	}
 
 	tempIndices = new short[tempIndicesV.size()];
@@ -400,7 +398,7 @@ bool DEMO_APP::LoadObjFile(const char* path, std::vector<DirectX::XMFLOAT3>& out
 		tempIndices[i] = tempIndicesV[i];
 	}
 
-	MakeVertexBuffer(&vBuffers[5], vectorSize, tempverts);
+	MakeVertexBuffer(&vBuffers[5], vertexIndices.size(), tempverts);
 	MakeIndexBuffer(&iBuffers[5], tempIndicesV.size(), tempIndices);
 
 	return true;
@@ -1015,16 +1013,12 @@ bool DEMO_APP::Run()
 	worldMatricies[9] = DirectX::XMMatrixMultiply(DirectX::XMMatrixScaling(0.05f, 0.05f, 0.05f), worldMatricies[9]);
 	toVSShader.worldMatrix = worldMatricies[9];
 
-	context->Map(cBufferVS, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
-	memcpy(ms.pData, &toVSShader, sizeof(toVSShader));
-	context->Unmap(cBufferVS, NULL);
-
 	context->IASetVertexBuffers(0, 1, &vBuffers[5], &stride, &offset);
 	context->IASetIndexBuffer(iBuffers[5], DXGI_FORMAT_R16_UINT, offset);
 
 	context->GSSetShader(nullptr, 0, 0);
 
-	context->DrawIndexed(612, 0, 0);
+	context->DrawIndexed(586, 0, 0);
 
 	//
 	// DRAW THE SUN
