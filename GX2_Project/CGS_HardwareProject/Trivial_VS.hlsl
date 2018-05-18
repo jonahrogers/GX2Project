@@ -6,6 +6,8 @@ struct INPUT_VERTEX
 	float3 normal : NORMAL;
 	float2 tex : TEXCOORD0;
 
+	float3 tangent : TANGENT;
+
 	uint instanceId : SV_INSTANCEID;
 };
 
@@ -15,6 +17,8 @@ struct OUTPUT_VERTEX
 	float3 normal : NORMAL;
 	float2 texOut : TEXCOORD0;
 	float4 worldPos : POSITION;
+
+	float3 tangent : TANGENT;
 
 	uint instanceId : SV_INSTANCEID;
 };
@@ -39,6 +43,8 @@ OUTPUT_VERTEX main(INPUT_VERTEX fromVertexBuffer)
 	sendToRasterizer.normal = normalize(sendToRasterizer.normal);
 
 	sendToRasterizer.texOut = fromVertexBuffer.tex;
+
+	sendToRasterizer.tangent = fromVertexBuffer.tangent;
 
 	sendToRasterizer.instanceId = fromVertexBuffer.instanceId;
 

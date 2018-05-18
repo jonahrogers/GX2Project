@@ -4,14 +4,31 @@ struct OUTPUT_GEOMETRY
 	float3 normal : NORMAL;
 	float2 texOut : TEXCOORD0;
 	float4 worldPos : POSITION;
+
+	float3 tangent : TANGENT;
 };
 
 texture2D baseTexture : register(t0);
 texture2D otherTexture : register(t3);
 
+texture2D normalMapTexture : register(t4);
+
 SamplerState baseFilter : register(s0);
 
-struct LIGHTS
+struct DIRLIGHTS
+{
+	float3 lightDirection;
+	float padding;
+	float4 lightColor;
+};
+
+struct POINTLIGHTS
+{
+	float4 lightPosition;
+	float4 lightColor;
+};
+
+struct SPOTLIGHTS
 {
 	float3 lightDirection;
 	float padding;
@@ -21,9 +38,17 @@ struct LIGHTS
 
 cbuffer THIS_IS_VRAM2 : register(b1)
 {
-	LIGHTS lights[3];
+	DIRLIGHTS dirLights[1];
+	POINTLIGHTS pointLights[1];
+	SPOTLIGHTS spotLights[1];
 	float4 ambientColor;
-	float4 emissiveValue;
+	//float4 emissiveValue;
+
+	float hasSecondTexture;
+	float hasNormMap;
+	float isRTT;
+
+	float padding;
 }
 
 float4 main(OUTPUT_GEOMETRY vertex) : SV_TARGET
@@ -38,11 +63,11 @@ float4 main(OUTPUT_GEOMETRY vertex) : SV_TARGET
 
 	otherTexture.GetDimensions(width, height);
 
-	if (width == 0 && height == 0)
+	if (hasSecondTexture == 0)
 	{
 		color = baseTexture.Sample(baseFilter, vertex.texOut);
 	}
-	else
+	else if (hasSecondTexture == 1)
 	{
 		color = baseTexture.Sample(baseFilter, vertex.texOut);
 
@@ -51,49 +76,82 @@ float4 main(OUTPUT_GEOMETRY vertex) : SV_TARGET
 		color = color * color2 * 2.0f;
 	}
 
-	//for directional light
-	if (lights[0].lightColor.w > 0.0f)
+	if (hasNormMap == 1)
 	{
-		float3 lightDir = -normalize(lights[0].lightDirection);
+		float4 normalMap = normalMapTexture.Sample(baseFilter, vertex.texOut);
+	
+		normalMap = (2.0f * normalMap) - 1.0f;
+	
+		vertex.tangent = normalize(vertex.tangent - dot(vertex.tangent, vertex.normal) * vertex.normal);
+	
+		float3 biTangent = cross(vertex.normal, vertex.tangent);
+	
+		float3x3 texSpace = float3x3(vertex.tangent, biTangent, vertex.normal);
+	
+		vertex.normal = normalize(mul(normalMap, texSpace));
+	}
+
+	//for directional light
+	if (!isRTT)
+	{
+		float3 lightDir = -normalize(dirLights[0].lightDirection);
 		float lightRatioDir = saturate(dot(lightDir, vertex.normal));
 		lightRatioDir = saturate(lightRatioDir + ambientColor);
-		dirColor = lightRatioDir * lights[0].lightColor;
-	}
+		dirColor = lightRatioDir * dirLights[0].lightColor;
+	//}
 
 	// for point light
-	if (lights[1].lightColor.w > 0.0f)
-	{
-		float3 lightPoint = (normalize(lights[1].lightPosition - vertex.worldPos)).xyz;
+	//if (lights[1].lightColor.w > 0.0f)
+	//{
+		float3 lightPoint = (normalize(pointLights[0].lightPosition - vertex.worldPos)).xyz;
 		float lightRatioPoint = saturate(dot(lightPoint, vertex.normal));
-		float attenuationPoint = 1.0f - saturate(length(lights[1].lightPosition.xyz - vertex.worldPos.xyz) / 5.0f);
+		float attenuationPoint = 1.0f - saturate(length(pointLights[0].lightPosition.xyz - vertex.worldPos.xyz) / 10.0f);
+		attenuationPoint *= attenuationPoint;
 		lightRatioPoint = saturate((lightRatioPoint * attenuationPoint));
-		pointColor = lightRatioPoint * lights[1].lightColor;
-	}
+		pointColor = lightRatioPoint * pointLights[0].lightColor;
+	//}
 
 	//for spot light
-	if (lights[2].lightColor.w > 0.0f)
-	{
-		float3 lightSpot = normalize(lights[2].lightPosition.xyz - vertex.worldPos.xyz);
-		float surfaceRatio = saturate(dot(-lightSpot, lights[2].lightDirection));
+	//if (lights[2].lightColor.w > 0.0f)
+	//{
+		float3 lightSpot = normalize(spotLights[0].lightPosition.xyz - vertex.worldPos.xyz);
+		float surfaceRatio = saturate(dot(-lightSpot, spotLights[0].lightDirection));
 		float spotFactor;
 		if (surfaceRatio > -1)
 			spotFactor = 1;
 		else
 			spotFactor = 0;
 		float lightRatioSpot = saturate(dot(lightSpot, vertex.normal));
-		float attenuationSpot = 0.2f - saturate((0.2f - surfaceRatio) / (0.2f - 0.1f));
+		float attenuationSpot = 1.0f - saturate((1.0f - surfaceRatio) / (1.0f - 0.9f));
 		lightRatioSpot = saturate((lightRatioSpot * attenuationSpot));
-		spotColor = spotFactor * lightRatioSpot * lights[2].lightColor;
-	}
+		spotColor = spotFactor * lightRatioSpot * spotLights[0].lightColor;
 
-	if (lights[0].lightColor.w == 0 && lights[1].lightColor.w == 0 && lights[2].lightColor.w == 0)
-		return color;
-	else
-	{
 		color = (dirColor + pointColor + spotColor) * color;
-		
+
 		color = saturate(color);
 
 		return color;
 	}
+	else
+	{
+		//float3 lightPoint = (normalize(pointLights[0].lightPosition - vertex.worldPos)).xyz;
+		//float lightRatioPoint = saturate(dot(lightPoint, vertex.normal));
+		//float attenuationPoint = 1.0f - saturate(length(pointLights[0].lightPosition.xyz - vertex.worldPos.xyz) / 20.0f);
+		////attenuationPoint = attenuationPoint * attenuationPoint;
+		//lightRatioPoint = saturate((lightRatioPoint * attenuationPoint));
+		//pointColor = saturate(lightRatioPoint + ambientColor) * pointLights[0].lightColor;
+
+		return saturate(color);
+	}
+
+	//if (lights[0].lightColor.w == 0 && lights[1].lightColor.w == 0 && lights[2].lightColor.w == 0)
+	//	return saturate(color);
+	//else
+	//{
+	//	color = (dirColor + pointColor + spotColor) * color;
+	//	
+	//	color = saturate(color);
+	//
+	//	return color;
+	//}
 }

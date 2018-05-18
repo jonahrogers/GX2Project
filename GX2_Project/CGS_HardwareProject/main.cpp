@@ -28,11 +28,12 @@
 #define TID_POLLMOUSE 100
 #define MOUSE_POLL_DELAY 5
 
-#define NUM_OF_MATRICIES 10
+#define NUM_OF_MATRICIES 11
 #define NUM_OF_VBUFFERS 6
 #define NUM_OF_IBUFFERS 6
-#define NUM_OF_DVIEWS 8
+#define NUM_OF_DVIEWS 9
 #define NUM_OF_SSTATES 1
+#define NUM_OF_NORMMAPS 2
 
 using namespace std;
 
@@ -46,7 +47,7 @@ using namespace std;
 #include "Trivial_GS.csh"
 #include "SkyBox_PS.csh"
 #include "SkyBox_VS.csh"
-#include "RTT_PS.csh"
+//#include "RTT_PS.csh"
 
 //************************************************************
 //************ SIMPLE WINDOWS APP CLASS **********************
@@ -87,6 +88,7 @@ class DEMO_APP
 	ID3D11Buffer* iBuffers[NUM_OF_IBUFFERS];
 	ID3D11ShaderResourceView* diffuseViews[NUM_OF_DVIEWS];
 	ID3D11SamplerState* samplerStates[NUM_OF_SSTATES];
+	ID3D11ShaderResourceView* normMaps[NUM_OF_NORMMAPS];
 
 	ID3D11InputLayout* inputLayout;
 	ID3D11InputLayout* skyBox_inputLayout;
@@ -112,7 +114,20 @@ class DEMO_APP
 	POINT tempPointDown = { MININT, MININT };
 	DirectX::XMMATRIX projectionMatrix;
 
-	struct LIGHTS
+	struct DIRLIGHTS
+	{
+		DirectX::XMFLOAT3 lightDirection;
+		float padding;
+		DirectX::XMFLOAT4 lightColor;
+	};
+
+	struct POINTLIGHTS
+	{
+		DirectX::XMFLOAT4 lightPosition;
+		DirectX::XMFLOAT4 lightColor;
+	};
+
+	struct SPOTLIGHTS
 	{
 		DirectX::XMFLOAT3 lightDirection;
 		float padding;
@@ -134,9 +149,17 @@ class DEMO_APP
 
 	struct SEND_TO_PS
 	{
-		LIGHTS lights[3];
+		DIRLIGHTS dirLights[1];
+		POINTLIGHTS pointLights[1];
+		SPOTLIGHTS spotLights[1];
 		DirectX::XMFLOAT4 ambientColor;
-		DirectX::XMFLOAT4 emissiveValue;
+		//DirectX::XMFLOAT4 emissiveValue;
+
+		float hasSecondTexture;
+		float hasNormMap;
+		float isRTT;
+
+		float padding;
 	};
 
 	SEND_TO_VS toVSShader;
@@ -148,6 +171,9 @@ public:
 		DirectX::XMFLOAT3 pos;
 		DirectX::XMFLOAT3 normal;
 		DirectX::XMFLOAT2 texCoords;
+
+		DirectX::XMFLOAT3 tangent;
+		//DirectX::XMFLOAT3 biTangent;
 	};
 
 	struct SKYBOX_VERTEX
@@ -164,7 +190,8 @@ public:
 
 	void CheckCameraInput();
 	bool LoadObjHeader(const OBJ_VERT* data, int dataSize, const unsigned int* indicies, int indiciesSize, int vBuffer, int iBuffer);
-	bool LoadObjFile(const char* path, std::vector<DirectX::XMFLOAT3>& out_vertices, std::vector<DirectX::XMFLOAT2>& out_uvs, std::vector<DirectX::XMFLOAT3>& out_normals);
+	void DEMO_APP::CalculateTangent(SIMPLE_VERTEX* data, unsigned int dataSize, short* indicies, unsigned int indiciesSize);
+		int LoadObjFile(const char* path, unsigned int vBuffer, unsigned int iBuffer);
 	void MakeVertexBuffer(ID3D11Buffer** buffer, int size, SIMPLE_VERTEX* data);
 	void MakeVertexBuffer(ID3D11Buffer** buffer, int size, SKYBOX_VERTEX* data);
 	void MakeIndexBuffer(ID3D11Buffer** buffer, int size, short* data);
@@ -267,7 +294,6 @@ bool DEMO_APP::LoadObjHeader(const OBJ_VERT* data, int dataSize, const unsigned 
 	}
 
 	MakeVertexBuffer(&vBuffers[vBuffer], dataSize, tempModel);
-
 	MakeIndexBuffer(&iBuffers[iBuffer], indiciesSize, tempModelIndices);
 
 	delete[] tempModel;
@@ -276,12 +302,84 @@ bool DEMO_APP::LoadObjHeader(const OBJ_VERT* data, int dataSize, const unsigned 
 	return true;
 }
 
-bool DEMO_APP::LoadObjFile(const char* path, std::vector<DirectX::XMFLOAT3>& out_vertices, std::vector<DirectX::XMFLOAT2>& out_uvs, std::vector<DirectX::XMFLOAT3>& out_normals)
+void DEMO_APP::CalculateTangent(SIMPLE_VERTEX* data, unsigned int dataSize, short* indicies, unsigned int indiciesSize)
+{
+	std::vector<DirectX::XMFLOAT3> tempTangent;
+	DirectX::XMFLOAT3 tangent = DirectX::XMFLOAT3(0.0f, 0.0f, 0.0f);
+	float tcU1, tcV1, tcU2, tcV2;
+
+	float vecX, vecY, vecZ;
+
+	DirectX::XMVECTOR edge1 = DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
+	DirectX::XMVECTOR edge2 = DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
+
+	for (unsigned int i = 0; i < dataSize; i+=3)
+	{
+		vecX = data[indicies[i]].pos.x - data[indicies[i + 2]].pos.x;
+		vecY = data[indicies[i]].pos.y - data[indicies[i + 2]].pos.y;
+		vecZ = data[indicies[i]].pos.z - data[indicies[i + 2]].pos.z;
+		edge1 = DirectX::XMVectorSet(vecX, vecY, vecZ, 0.0f);
+
+		vecX = data[indicies[i + 2]].pos.x - data[indicies[i + 1]].pos.x;
+		vecY = data[indicies[i + 2]].pos.y - data[indicies[i + 1]].pos.y;
+		vecZ = data[indicies[i + 2]].pos.z - data[indicies[i + 1]].pos.z;
+		edge2 = DirectX::XMVectorSet(vecX, vecY, vecZ, 0.0f);
+
+		tcU1 = data[indicies[i]].texCoords.x - data[indicies[i + 2]].texCoords.x;
+		tcV1 = data[indicies[i]].texCoords.y - data[indicies[i + 2]].texCoords.y;
+
+		tcU2 = data[indicies[i + 2]].texCoords.x - data[indicies[i + 1]].texCoords.x;
+		tcV2 = data[indicies[i + 2]].texCoords.y - data[indicies[i + 1]].texCoords.y;
+
+		tangent.x = (tcV1 * DirectX::XMVectorGetX(edge1) - tcV2 * DirectX::XMVectorGetX(edge2)) * (1.0f / (tcU1 * tcV2 - tcU2 * tcV1));
+		tangent.y = (tcV1 * DirectX::XMVectorGetY(edge1) - tcV2 * DirectX::XMVectorGetY(edge2)) * (1.0f / (tcU1 * tcV2 - tcU2 * tcV1));
+		tangent.z = (tcV1 * DirectX::XMVectorGetZ(edge1) - tcV2 * DirectX::XMVectorGetZ(edge2)) * (1.0f / (tcU1 * tcV2 - tcU2 * tcV1));
+	
+		tempTangent.push_back(tangent);
+	}
+
+	DirectX::XMVECTOR tangentSum = DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
+	unsigned int facesUsing = 0;
+	float tX, tY, tZ;
+
+	for (unsigned int i = 0; i < indiciesSize; i+=3)
+	{
+		for (unsigned int j = 0; j < dataSize; j+=3)
+		{
+			if (indicies[j] == i || indicies[j + 1] == i || indicies[j + 2] == i)
+			{
+				tX = DirectX::XMVectorGetX(tangentSum) + tempTangent[j / 3].x;
+				tY = DirectX::XMVectorGetY(tangentSum) + tempTangent[j / 3].y;
+				tZ = DirectX::XMVectorGetZ(tangentSum) + tempTangent[j / 3].z;
+
+				tangentSum = DirectX::XMVectorSet(tX, tY, tZ, 0.0f);
+
+				++facesUsing;
+			}
+		}
+
+		DirectX::XMVectorSetX(tangentSum, DirectX::XMVectorGetX(tangentSum) / facesUsing);
+		DirectX::XMVectorSetY(tangentSum, DirectX::XMVectorGetY(tangentSum) / facesUsing);
+		DirectX::XMVectorSetZ(tangentSum, DirectX::XMVectorGetZ(tangentSum) / facesUsing);
+
+		tangentSum = DirectX::XMVector3Normalize(tangentSum);
+
+		data[i].tangent.x = DirectX::XMVectorGetX(tangentSum);
+		data[i].tangent.y = DirectX::XMVectorGetY(tangentSum);
+		data[i].tangent.z = DirectX::XMVectorGetZ(tangentSum);
+
+		tangentSum = DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
+
+		facesUsing = 0;
+	}
+}
+
+int DEMO_APP::LoadObjFile(const char* path, unsigned int vBuffer, unsigned int iBuffer)
 {
 	std::vector<unsigned int> vertexIndices, uvIndices, normalIndices;
-	std::vector<DirectX::XMFLOAT3> temp_vertices;
-	std::vector<DirectX::XMFLOAT2> temp_uvs;
-	std::vector<DirectX::XMFLOAT3> temp_normals;
+	std::vector<DirectX::XMFLOAT3> tempVertices;
+	std::vector<DirectX::XMFLOAT2> tempUVs;
+	std::vector<DirectX::XMFLOAT3> tempNormals;
 
 	unsigned int index = 0;
 
@@ -303,24 +401,23 @@ bool DEMO_APP::LoadObjFile(const char* path, std::vector<DirectX::XMFLOAT3>& out
 		{
 			DirectX::XMFLOAT3 vert;
 			fscanf(file, "%f %f %f\n", &vert.x, &vert.y, &vert.z);
-			temp_vertices.push_back(vert);
+			tempVertices.push_back(vert);
 		}
 		else if (strcmp(line, "vt") == 0)
 		{
 			DirectX::XMFLOAT2 uv;
 			fscanf(file, "%f %f\n", &uv.x, &uv.y);
 			uv.y *= -1;
-			temp_uvs.push_back(uv);
+			tempUVs.push_back(uv);
 		}
 		else if (strcmp(line, "vn") == 0)
 		{
 			DirectX::XMFLOAT3 normal;
 			fscanf(file, "%f %f %f\n", &normal.x, &normal.y, &normal.z);
-			temp_normals.push_back(normal);
+			tempNormals.push_back(normal);
 		}
 		else if (strcmp(line, "f") == 0)
 		{
-			std::string vertex1, vertex2, vertex3;
 			unsigned int vertexIndex[3], uvIndex[3], normalIndex[3];
 			fscanf(file, "%d/%d/%d %d/%d/%d %d/%d/%d\n", &vertexIndex[0], &uvIndex[0], &normalIndex[0], &vertexIndex[1], &uvIndex[1], &normalIndex[1], &vertexIndex[2], &uvIndex[2], &normalIndex[2]);
 			
@@ -336,74 +433,71 @@ bool DEMO_APP::LoadObjFile(const char* path, std::vector<DirectX::XMFLOAT3>& out
 		}
 	}
 
-	SIMPLE_VERTEX* tempverts = new SIMPLE_VERTEX[vertexIndices.size()];
-	short* tempIndices;// = new short[vertexIndices.size()];
+	SIMPLE_VERTEX* tempVertsArray = new SIMPLE_VERTEX[vertexIndices.size()];
+	short* tempIndicesArray;
 
-	std::vector<short> tempIndicesV;
+	std::vector<short> tempIndicesVector;
 
 	int vectorSize = 0;
 
 	for (unsigned int i = 0; i < vertexIndices.size(); ++i)
 	{
 		unsigned int vertexIndex = vertexIndices[i];
-		DirectX::XMFLOAT3 vert = temp_vertices[vertexIndex - 1];
+		DirectX::XMFLOAT3 vert = tempVertices[vertexIndex - 1];
 	
 		unsigned int uvIndex = uvIndices[i];
-		DirectX::XMFLOAT2 uv = temp_uvs[uvIndex - 1];
+		DirectX::XMFLOAT2 uv = tempUVs[uvIndex - 1];
 	
 		unsigned int normalIndex = normalIndices[i];
-		DirectX::XMFLOAT3 normal = temp_normals[normalIndex - 1];
+		DirectX::XMFLOAT3 normal = tempNormals[normalIndex - 1];
 
 		bool result = false;
 
 		for (unsigned int j = 0; j < vectorSize; ++j)
 		{
-			if (vert.x == tempverts[j].pos.x &&
-				vert.y == tempverts[j].pos.y &&
-				vert.z == tempverts[j].pos.z &&
-				uv.x == tempverts[j].texCoords.x &&
-				uv.y == tempverts[j].texCoords.y &&
-				normal.x == tempverts[j].normal.x &&
-				normal.y == tempverts[j].normal.y &&
-				normal.z == tempverts[j].normal.z)
+			if (vert.x == tempVertsArray[j].pos.x &&
+				vert.y == tempVertsArray[j].pos.y &&
+				vert.z == tempVertsArray[j].pos.z &&
+				uv.x == tempVertsArray[j].texCoords.x &&
+				uv.y == tempVertsArray[j].texCoords.y &&
+				normal.x == tempVertsArray[j].normal.x &&
+				normal.y == tempVertsArray[j].normal.y &&
+				normal.z == tempVertsArray[j].normal.z)
 			{
 				result = true;
-				tempIndicesV.push_back(j);
+				tempIndicesVector.push_back(j);
 			}
 		}
 	
 		if (result == false)
 		{
-			tempIndicesV.push_back(index);
+			tempIndicesVector.push_back(index);
 			++index;
 
-			tempverts[vectorSize].pos = vert;
-			tempverts[vectorSize].texCoords = uv;
-			tempverts[vectorSize].normal = normal;
+			tempVertsArray[vectorSize].pos = vert;
+			tempVertsArray[vectorSize].texCoords = uv;
+			tempVertsArray[vectorSize].normal = normal;
 
 			++vectorSize;
 		}
-		//else
-		//{
-		//	tempIndicesV.push_back(i);
-
-		//	//tempverts[i].pos = vert;
-		//	//tempverts[i].texCoords = uv;
-		//	//tempverts[i].normal = normal;
-		//}
 	}
 
-	tempIndices = new short[tempIndicesV.size()];
+	tempIndicesArray = new short[tempIndicesVector.size()];
 
-	for (unsigned int i = 0; i < tempIndicesV.size(); ++i)
+	for (unsigned int i = 0; i < tempIndicesVector.size(); ++i)
 	{
-		tempIndices[i] = tempIndicesV[i];
+		tempIndicesArray[i] = tempIndicesVector[i];
 	}
 
-	MakeVertexBuffer(&vBuffers[5], vectorSize, tempverts);
-	MakeIndexBuffer(&iBuffers[5], tempIndicesV.size(), tempIndices);
+	CalculateTangent(tempVertsArray, tempVertices.size(), tempIndicesArray, tempIndicesVector.size());
 
-	return true;
+	MakeVertexBuffer(&vBuffers[vBuffer], vectorSize, tempVertsArray);
+	MakeIndexBuffer(&iBuffers[iBuffer], tempIndicesVector.size(), tempIndicesArray);
+
+	delete[] tempVertsArray;
+	delete[] tempIndicesArray;
+
+	return tempIndicesVector.size();
 }
 
 void DEMO_APP::MakeVertexBuffer(ID3D11Buffer** buffer, int size, SIMPLE_VERTEX* data)
@@ -486,7 +580,6 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	ShowWindow(window, SW_SHOW);
 	//********************* END WARNING ************************//
 
-	// TODO: PART 1 STEP 3a
 	swapChainDesc.BufferCount = 1;
 	swapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	swapChainDesc.BufferDesc.Width = backBuffer_width;
@@ -646,6 +739,8 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 		5,7,4, 5,6,7
 	};
 
+	//CalculateTangent(cubeVerts, ARRAYSIZE(cubeVerts), triangleVerts, ARRAYSIZE(triangleVerts));
+
 	SKYBOX_VERTEX cubeMapVerts[] =
 	{
 		{ DirectX::XMFLOAT3(-0.25f, 0.25f, -0.25f), DirectX::XMFLOAT2(0.0f, 0.0f) },
@@ -700,81 +795,17 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	MakeIndexBuffer(&iBuffers[1], ARRAYSIZE(triangleVerts), triangleVerts);
 
 	result = CreateDDSTextureFromFile(device, L"greendragon.dds", nullptr, &diffuseViews[1]);
-	D3D11_SAMPLER_DESC sampDesc;
-	ZeroMemory(&sampDesc, sizeof(sampDesc));
-	sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-	sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-	sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-	sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-	sampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
-	sampDesc.MinLOD = 0;
-	sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
-
 	result = CreateDDSTextureFromFile(device, L"Barrel.dds", nullptr, &diffuseViews[2]);
-	D3D11_SAMPLER_DESC barrelSampDesc;
-	ZeroMemory(&barrelSampDesc, sizeof(barrelSampDesc));
-	barrelSampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-	barrelSampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-	barrelSampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-	barrelSampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-	barrelSampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
-	barrelSampDesc.MinLOD = 0;
-	barrelSampDesc.MaxLOD = D3D11_FLOAT32_MAX;
-
 	result = CreateDDSTextureFromFile(device, L"StoneHenge.dds", nullptr, &diffuseViews[3]);
-	D3D11_SAMPLER_DESC SHSampDesc;
-	ZeroMemory(&SHSampDesc, sizeof(SHSampDesc));
-	SHSampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-	SHSampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-	SHSampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-	SHSampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-	SHSampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
-	SHSampDesc.MinLOD = 0;
-	SHSampDesc.MaxLOD = D3D11_FLOAT32_MAX;
-
 	result = CreateDDSTextureFromFile(device, L"earthmap1k.dds", nullptr, &diffuseViews[4]);
-	D3D11_SAMPLER_DESC ESampDesc;
-	ZeroMemory(&ESampDesc, sizeof(ESampDesc));
-	ESampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-	ESampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-	ESampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-	ESampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-	ESampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
-	ESampDesc.MinLOD = 0;
-	ESampDesc.MaxLOD = D3D11_FLOAT32_MAX;
-
 	result = CreateDDSTextureFromFile(device, L"earthcloudmap.dds", nullptr, &diffuseViews[5]);
-	D3D11_SAMPLER_DESC ECSampDesc;
-	ZeroMemory(&ECSampDesc, sizeof(ECSampDesc));
-	ECSampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-	ECSampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-	ECSampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-	ECSampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-	ECSampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
-	ECSampDesc.MinLOD = 0;
-	ECSampDesc.MaxLOD = D3D11_FLOAT32_MAX;
-
 	result = CreateDDSTextureFromFile(device, L"moonmap1k.dds", nullptr, &diffuseViews[6]);
-	D3D11_SAMPLER_DESC MSampDesc;
-	ZeroMemory(&MSampDesc, sizeof(MSampDesc));
-	MSampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-	MSampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-	MSampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-	MSampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-	MSampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
-	MSampDesc.MinLOD = 0;
-	MSampDesc.MaxLOD = D3D11_FLOAT32_MAX;
-
 	result = CreateDDSTextureFromFile(device, L"sunmap.dds", nullptr, &diffuseViews[7]);
-	D3D11_SAMPLER_DESC SSampDesc;
-	ZeroMemory(&SSampDesc, sizeof(SSampDesc));
-	SSampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-	SSampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-	SSampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-	SSampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-	SSampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
-	SSampDesc.MinLOD = 0;
-	SSampDesc.MaxLOD = D3D11_FLOAT32_MAX;
+	
+	result = CreateDDSTextureFromFile(device, L"moonbump1k.dds", nullptr, &normMaps[0]);
+
+	result = CreateDDSTextureFromFile(device, L"stone01.dds", nullptr, &diffuseViews[8]);
+	result = CreateDDSTextureFromFile(device, L"bump01.dds", nullptr, &normMaps[1]);
 
 	MakeVertexBuffer(&vBuffers[0], ARRAYSIZE(cubeMapVerts), cubeMapVerts);
 	MakeIndexBuffer(&iBuffers[0], ARRAYSIZE(cubeMapTriangleVerts), cubeMapTriangleVerts);
@@ -796,13 +827,14 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	result = device->CreateGeometryShader(Trivial_GS, sizeof(Trivial_GS), NULL, &gs);
 	result = device->CreateVertexShader(SkyBox_VS, sizeof(SkyBox_VS), NULL, &skyBox_vs);
 	result = device->CreatePixelShader(SkyBox_PS, sizeof(SkyBox_PS), NULL, &skyBox_ps);
-	result = device->CreatePixelShader(RTT_PS, sizeof(RTT_PS), NULL, &rtt_ps);
+	//result = device->CreatePixelShader(RTT_PS, sizeof(RTT_PS), NULL, &rtt_ps);
 
 	D3D11_INPUT_ELEMENT_DESC vLayout[] =
 	{
 		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
 		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
 		{ "SV_INSTANCEID", 0, DXGI_FORMAT_R32_UINT, 1, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_INSTANCE_DATA, 1 },
 	};
 
@@ -814,13 +846,6 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 	result = device->CreateInputLayout(vLayout, ARRAYSIZE(vLayout), Trivial_VS, sizeof(Trivial_VS), &inputLayout);
 	result = device->CreateInputLayout(skyBox_vLayout, ARRAYSIZE(skyBox_vLayout), SkyBox_VS, sizeof(SkyBox_VS), &skyBox_inputLayout);
-
-	cBufferVSDesc.Usage = D3D11_USAGE_DYNAMIC;
-	cBufferVSDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-	cBufferVSDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-	cBufferVSDesc.ByteWidth = sizeof(SEND_TO_VS);
-
-	result = device->CreateBuffer(&cBufferVSDesc, NULL, &cBufferVS);
 
 	cBufferVSDesc.Usage = D3D11_USAGE_DYNAMIC;
 	cBufferVSDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
@@ -848,17 +873,15 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	rtt_viewMatrix = DirectX::XMMatrixInverse(nullptr, DirectX::XMMatrixMultiply(DirectX::XMMatrixTranslation(0, 0, -5.0f), DirectX::XMMatrixRotationX(-18.0f)));
 	rtt_projectionMatrix = DirectX::XMMatrixPerspectiveFovLH(DirectX::XMConvertToRadians(90), 100 / 100, 0.1f, 100.0f);
 	
-	worldMatricies[3] = DirectX::XMMatrixScaling(100.0f, 100.0f, 100.0f);// DirectX::XMMatrixMultiply(DirectX::XMMatrixScaling(100.0f, 100.0f, 100.0f), worldMatricies[3]);
+	worldMatricies[3] = DirectX::XMMatrixScaling(100.0f, 100.0f, 100.0f);
 	worldMatricies[3].r[3] = cameraMatrix.r[3];
 
-	std::vector<DirectX::XMFLOAT3> verts;
-	std::vector<DirectX::XMFLOAT2> uvs;
-	std::vector<DirectX::XMFLOAT3> normals;
-	LoadObjFile("Barrel.obj", verts, uvs, normals);
+	int num = LoadObjFile("Barrel.obj", 5, 5);
 
 	LoadObjHeader(Barrel_data, ARRAYSIZE(Barrel_data), Barrel_indicies, ARRAYSIZE(Barrel_indicies), 2, 2);
 	LoadObjHeader(StoneHenge_data, ARRAYSIZE(StoneHenge_data), StoneHenge_indicies, ARRAYSIZE(StoneHenge_indicies), 3, 3);
-	LoadObjHeader(_3d_planet_data, ARRAYSIZE(_3d_planet_data), _3d_planet_indicies, ARRAYSIZE(_3d_planet_indicies), 4, 4);
+	//LoadObjHeader(_3d_planet_data, ARRAYSIZE(_3d_planet_data), _3d_planet_indicies, ARRAYSIZE(_3d_planet_indicies), 4, 4);
+	num = LoadObjFile("3d_planet.obj", 4, 4);
 }
 
 //************************************************************
@@ -879,7 +902,6 @@ bool DEMO_APP::Run()
 
 	context->ClearRenderTargetView(rtv, arr);
 	context->ClearDepthStencilView(dsv, D3D11_CLEAR_DEPTH, 1.0f, 1.0f);
-
 	//
 	// DRAW THE SKYBOX
 	//
@@ -893,7 +915,6 @@ bool DEMO_APP::Run()
 	context->Unmap(cBufferVS, NULL);
 
 	context->VSSetConstantBuffers(2, 1, &cBufferVS);
-	//context->PSSetConstantBuffers(1, 1, &cBufferPS);
 
 	UINT stride = sizeof(SKYBOX_VERTEX);
 	UINT offset = 0;
@@ -914,32 +935,35 @@ bool DEMO_APP::Run()
 	context->DrawIndexed(36, 0, 0);
 
 	context->ClearDepthStencilView(dsv, D3D11_CLEAR_DEPTH, 1.0f, 1.0f);
-
 	//
 	// DRAW THE FLAT CUBE RTT
 	//
-	worldMatricies[0] = DirectX::XMMatrixTranslation(0.0f, 0.25f, 0.0f);
+	worldMatricies[0] = DirectX::XMMatrixTranslation(-5.0f, 2.5f, 0.0f);
+	worldMatricies[0] = DirectX::XMMatrixMultiply(DirectX::XMMatrixRotationX(DirectX::XMConvertToRadians(-90)), worldMatricies[0]);
+	worldMatricies[0] = DirectX::XMMatrixMultiply(DirectX::XMMatrixRotationZ(DirectX::XMConvertToRadians(90)), worldMatricies[0]);
 	worldMatricies[0] = DirectX::XMMatrixMultiply(DirectX::XMMatrixScaling(10.0f, 1.0f, 10.0f), worldMatricies[0]);
 	toVSShader.worldMatrix = worldMatricies[0];
 	viewMatrix = DirectX::XMMatrixInverse(nullptr, cameraMatrix);
 	toVSShader.viewMatrix = viewMatrix;
 	toVSShader.projectionMatrix = projectionMatrix;
 
-	toPSShader.lights[0].lightPosition = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
-	toPSShader.lights[0].lightDirection = DirectX::XMFLOAT3(-0.3f, -sin(timer * 0.6f), -sin(timer * 0.6f));
-	toPSShader.lights[0].lightColor = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-	toPSShader.lights[1].lightPosition = DirectX::XMFLOAT4(0.0f, -2.0f, sin(timer), 1.0f);
-	toPSShader.lights[1].lightDirection = DirectX::XMFLOAT3(0.3f, 0.3f, 0.3f);
-	toPSShader.lights[1].lightColor = DirectX::XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f);
-	toPSShader.lights[2].lightPosition = DirectX::XMFLOAT4(sin(timer * 1.5f), 2.0f, -sin(timer * 1.5f), 1.0f);//DirectX::XMFLOAT4(sin(timer * 2), 2.0f, sin(timer * 0.8f), 1.0f);
-	toPSShader.lights[2].lightDirection = DirectX::XMFLOAT3(0.0f, -1.0f, 0.6f);
-	toPSShader.lights[2].lightColor = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	//toPSShader.dirLights[0].lightPosition = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+	toPSShader.dirLights[0].lightDirection = DirectX::XMFLOAT3(-0.3f, -cos(timer * 0.6f), -cos(timer * 0.6f));
+	toPSShader.dirLights[0].lightColor = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	toPSShader.pointLights[0].lightPosition = DirectX::XMFLOAT4(1.5f, 0.5f, cos(timer), 1.0f);
+	//toPSShader.pointLights[0].lightDirection = DirectX::XMFLOAT3(0.3f, 0.3f, 0.3f);
+	toPSShader.pointLights[0].lightColor = DirectX::XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f);
+	toPSShader.spotLights[0].lightPosition = DirectX::XMFLOAT4(cos(timer * 1.5f), 2.0f, -cos(timer * 0.5f), 1.0f);
+	toPSShader.spotLights[0].lightDirection = DirectX::XMFLOAT3(0.0f, -1.0f, 0.6f);
+	toPSShader.spotLights[0].lightColor = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	toPSShader.ambientColor = DirectX::XMFLOAT4(0.2f, 0.2f, 0.2f, 1.0f);
-	toPSShader.emissiveValue = DirectX::XMFLOAT4(1.0f, 0.1f, 0.1f, 0.0f);
+	toPSShader.hasNormMap = 0;
+	toPSShader.hasSecondTexture = 0;
+	toPSShader.isRTT = 0;
+	//toPSShader.emissiveValue = DirectX::XMFLOAT4(1.0f, 0.1f, 0.1f, 0.0f);
 
 	timer += time.SmoothDelta();
 
-	//D3D11_MAPPED_SUBRESOURCE ms;
 	context->Map(cBufferVS, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
 	memcpy(ms.pData, &toVSShader, sizeof(toVSShader));
 	context->Unmap(cBufferVS, NULL);
@@ -955,14 +979,11 @@ bool DEMO_APP::Run()
 	context->IASetVertexBuffers(0, 1, &vBuffers[1], &stride, &offset);
 	context->IASetIndexBuffer(iBuffers[1], DXGI_FORMAT_R16_UINT, offset);
 
-	//context->OMSetRenderTargets(1, &rtv, dsv);
-
 	context->VSSetShader(vs, 0, 0);
-	context->PSSetShader(rtt_ps, 0, 0);
+	context->PSSetShader(ps, 0, 0);
 
-	context->PSSetShaderResources(2, 1, &rtt_shaderResource);
+	context->PSSetShaderResources(0, 1, &rtt_shaderResource);
 	context->PSSetSamplers(0, 1, &samplerStates[0]);
-	//context->PSSetSamplers(0, 1, &samplerStates[1]);
 
 	context->IASetInputLayout(inputLayout);
 
@@ -970,21 +991,31 @@ bool DEMO_APP::Run()
 
 	context->DrawIndexed(36, 0, 0);
 
+	context->PSSetShaderResources(0, 1, pSRV);
 	//
 	// DRAW THE FLAT CUBE
 	//
-	worldMatricies[8] = DirectX::XMMatrixTranslation(0.0f, -1.0f, 0.0f);
+	worldMatricies[8] = DirectX::XMMatrixTranslation(0.0f, 0.0f, 0.0f);
 	worldMatricies[8] = DirectX::XMMatrixMultiply(DirectX::XMMatrixScaling(10.0f, 1.0f, 10.0f), worldMatricies[8]);
 	toVSShader.worldMatrix = worldMatricies[8];
+
+	toPSShader.hasNormMap = 0;
+	toPSShader.hasSecondTexture = 0;
+	toPSShader.isRTT = 0;
 
 	context->Map(cBufferVS, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
 	memcpy(ms.pData, &toVSShader, sizeof(toVSShader));
 	context->Unmap(cBufferVS, NULL);
 
-	context->PSSetShaderResources(2, 1, &diffuseViews[1]);
+	context->Map(cBufferPS, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
+	memcpy(ms.pData, &toPSShader, sizeof(toPSShader));
+	context->Unmap(cBufferPS, NULL);
+
+	context->PSSetShader(ps, 0, 0);
+
+	context->PSSetShaderResources(0, 1, &diffuseViews[1]);
 
 	context->DrawIndexed(36, 0, 0);
-
 	//
 	// DRAW THE BARRELS
 	//
@@ -995,53 +1026,36 @@ bool DEMO_APP::Run()
 	context->GSSetShader(gs, 0, 0);
 
 	context->PSSetShaderResources(0, 1, &diffuseViews[2]);
-	//context->PSSetSamplers(0, 1, &samplerStates[2]);
 
-	worldMatricies[2] = DirectX::XMMatrixTranslation(0.0f, -2.5f, 2.0f);
-	worldMatricies[2] = DirectX::XMMatrixMultiply(DirectX::XMMatrixScaling(0.05f, 0.05f, 0.05f), worldMatricies[2]);
-	toVSShader.worldMatrix = worldMatricies[2];
-
-	context->Map(cBufferVS, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
-	memcpy(ms.pData, &toVSShader, sizeof(toVSShader));
-	context->Unmap(cBufferVS, NULL);
-
-	context->GSSetConstantBuffers(3, 1, &cBufferVS);
-
-	context->DrawIndexedInstanced(ARRAYSIZE(Barrel_indicies), 10, 0, 0, 0);
-
-
-
-	worldMatricies[9] = DirectX::XMMatrixTranslation(0.0f, 0.5f, 1.0f);
+	//worldMatricies[2] = DirectX::XMMatrixTranslation(0.0f, -2.5f, 2.0f);
+	//worldMatricies[2] = DirectX::XMMatrixMultiply(DirectX::XMMatrixScaling(0.05f, 0.05f, 0.05f), worldMatricies[2]);
+	//toVSShader.worldMatrix = worldMatricies[2];
+	//
+	//toPSShader.hasNormMap = 0;
+	//toPSShader.hasSecondTexture = 0;
+	//toPSShader.isRTT = 0;
+	//
+	//context->Map(cBufferVS, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
+	//memcpy(ms.pData, &toVSShader, sizeof(toVSShader));
+	//context->Unmap(cBufferVS, NULL);
+	//
+	//context->Map(cBufferPS, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
+	//memcpy(ms.pData, &toPSShader, sizeof(toPSShader));
+	//context->Unmap(cBufferPS, NULL);
+	//
+	//context->GSSetConstantBuffers(3, 1, &cBufferVS);
+	//
+	//context->DrawIndexedInstanced(ARRAYSIZE(Barrel_indicies), 10, 0, 0, 0);
+	//
+	// MORE BARRELS
+	//
+	worldMatricies[9] = DirectX::XMMatrixTranslation(2.0f, 0.25f, 2.0f);
 	worldMatricies[9] = DirectX::XMMatrixMultiply(DirectX::XMMatrixScaling(0.05f, 0.05f, 0.05f), worldMatricies[9]);
 	toVSShader.worldMatrix = worldMatricies[9];
 
-	context->Map(cBufferVS, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
-	memcpy(ms.pData, &toVSShader, sizeof(toVSShader));
-	context->Unmap(cBufferVS, NULL);
-
-	context->IASetVertexBuffers(0, 1, &vBuffers[5], &stride, &offset);
-	context->IASetIndexBuffer(iBuffers[5], DXGI_FORMAT_R16_UINT, offset);
-
-	context->GSSetShader(nullptr, 0, 0);
-
-	context->DrawIndexed(612, 0, 0);
-
-	//
-	// DRAW THE SUN
-	//
-	context->IASetVertexBuffers(0, 1, &vBuffers[4], &stride, &offset);
-	context->IASetIndexBuffer(iBuffers[4], DXGI_FORMAT_R16_UINT, offset);
-
-	context->GSSetShader(nullptr, 0, 0);
-
-	context->PSSetShaderResources(0, 1, &diffuseViews[7]);
-	//context->PSSetSamplers(0, 1, &samplerStates[4]);
-
-	worldMatricies[5] = DirectX::XMMatrixTranslation(0.0f, 0.0f, 400.0f);
-	worldMatricies[5] = DirectX::XMMatrixMultiply(DirectX::XMMatrixRotationY(timer * 0.3f), worldMatricies[5]);
-	worldMatricies[5] = DirectX::XMMatrixMultiply(DirectX::XMMatrixScaling(0.3f, 0.3f, 0.3f), worldMatricies[5]);
-	toVSShader.worldMatrix = worldMatricies[5];
-	toPSShader.emissiveValue = DirectX::XMFLOAT4(1.0f, 0.1f, 0.1f, 1.0f);
+	toPSShader.hasNormMap = 0;
+	toPSShader.hasSecondTexture = 0;
+	toPSShader.isRTT = 0;
 
 	context->Map(cBufferVS, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
 	memcpy(ms.pData, &toVSShader, sizeof(toVSShader));
@@ -1051,8 +1065,42 @@ bool DEMO_APP::Run()
 	memcpy(ms.pData, &toPSShader, sizeof(toPSShader));
 	context->Unmap(cBufferPS, NULL);
 
-	context->DrawIndexed(ARRAYSIZE(_3d_planet_indicies), 0, 0);
+	context->IASetVertexBuffers(0, 1, &vBuffers[5], &stride, &offset);
+	context->IASetIndexBuffer(iBuffers[5], DXGI_FORMAT_R16_UINT, offset);
 
+	//context->GSSetShader(nullptr, 0, 0);
+	context->GSSetConstantBuffers(3, 1, &cBufferVS);
+
+	context->DrawIndexedInstanced(612, 10, 0, 0, 0);
+	//
+	// DRAW THE SUN
+	//
+	context->IASetVertexBuffers(0, 1, &vBuffers[4], &stride, &offset);
+	context->IASetIndexBuffer(iBuffers[4], DXGI_FORMAT_R16_UINT, offset);
+
+	context->GSSetShader(nullptr, 0, 0);
+
+	context->PSSetShaderResources(0, 1, &diffuseViews[7]);
+
+	worldMatricies[5] = DirectX::XMMatrixTranslation(0.0f, 0.0f, 400.0f);
+	worldMatricies[5] = DirectX::XMMatrixMultiply(DirectX::XMMatrixRotationY(timer * 0.3f), worldMatricies[5]);
+	worldMatricies[5] = DirectX::XMMatrixMultiply(DirectX::XMMatrixScaling(0.3f, 0.3f, 0.3f), worldMatricies[5]);
+	toVSShader.worldMatrix = worldMatricies[5];
+
+	toPSShader.hasNormMap = 0;
+	toPSShader.hasSecondTexture = 0;
+	toPSShader.isRTT = 0;
+	//toPSShader.emissiveValue = DirectX::XMFLOAT4(1.0f, 0.1f, 0.1f, 1.0f);
+
+	context->Map(cBufferVS, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
+	memcpy(ms.pData, &toVSShader, sizeof(toVSShader));
+	context->Unmap(cBufferVS, NULL);
+
+	context->Map(cBufferPS, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
+	memcpy(ms.pData, &toPSShader, sizeof(toPSShader));
+	context->Unmap(cBufferPS, NULL);
+
+	context->DrawIndexed(7140, 0, 0);
 	//
 	// DRAW THE EARTH
 	//
@@ -1064,7 +1112,11 @@ bool DEMO_APP::Run()
 	worldMatricies[6] = DirectX::XMMatrixMultiply(DirectX::XMMatrixRotationY(timer * 0.3f), worldMatricies[6]);
 	worldMatricies[6] = DirectX::XMMatrixMultiply(DirectX::XMMatrixScaling(0.1f, 0.1f, 0.1f), worldMatricies[6]);
 	toVSShader.worldMatrix = worldMatricies[6];
-	toPSShader.emissiveValue = DirectX::XMFLOAT4(1.0f, 0.1f, 0.1f, 0.0f);
+
+	toPSShader.hasNormMap = 0;
+	toPSShader.hasSecondTexture = 1;
+	toPSShader.isRTT = 0;
+	//toPSShader.emissiveValue = DirectX::XMFLOAT4(1.0f, 0.1f, 0.1f, 0.0f);
 
 	context->Map(cBufferVS, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
 	memcpy(ms.pData, &toVSShader, sizeof(toVSShader));
@@ -1074,28 +1126,82 @@ bool DEMO_APP::Run()
 	memcpy(ms.pData, &toPSShader, sizeof(toPSShader));
 	context->Unmap(cBufferPS, NULL);
 
-	context->DrawIndexed(ARRAYSIZE(_3d_planet_indicies), 0, 0);
-
+	context->DrawIndexed(7140, 0, 0);
 	//
 	// DRAW THE MOON
 	//
 	context->PSSetShaderResources(0, 1, &diffuseViews[6]);
 	context->PSSetShaderResources(3, 1, pSRV);
+	context->PSSetShaderResources(4, 1, &normMaps[0]);
 
-	worldMatricies[7] = DirectX::XMMatrixTranslation(worldMatricies[6].r[3].m128_f32[0] + 0.0f, worldMatricies[6].r[3].m128_f32[1] + 0.0f, worldMatricies[6].r[3].m128_f32[2] + 0.0f);
-	worldMatricies[7] = DirectX::XMMatrixMultiply(DirectX::XMMatrixMultiply(DirectX::XMMatrixTranslation(-100.0f, 0.0f, 0.0f), DirectX::XMMatrixRotationY(timer * 0.7f)), worldMatricies[7]);
+	worldMatricies[7] = DirectX::XMMatrixTranslation(0.0f, 0.0f, 50.0f);
+	//worldMatricies[7] = DirectX::XMMatrixTranslation(worldMatricies[6].r[3].m128_f32[0] + 0.0f, worldMatricies[6].r[3].m128_f32[1] + 0.0f, worldMatricies[6].r[3].m128_f32[2] + 0.0f);
+	//worldMatricies[7] = DirectX::XMMatrixMultiply(DirectX::XMMatrixMultiply(DirectX::XMMatrixTranslation(-100.0f, 0.0f, 0.0f), DirectX::XMMatrixRotationY(timer * 0.7f)), worldMatricies[7]);
 	worldMatricies[7] = DirectX::XMMatrixMultiply(DirectX::XMMatrixRotationY(timer * 0.65f), worldMatricies[7]);
 	worldMatricies[7] = DirectX::XMMatrixMultiply(DirectX::XMMatrixScaling(0.05f, 0.05f, 0.05f), worldMatricies[7]);
 	toVSShader.worldMatrix = worldMatricies[7];
+
+	toPSShader.hasNormMap = 1;
+	toPSShader.hasSecondTexture = 0;
+	toPSShader.isRTT = 0;
 
 	context->Map(cBufferVS, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
 	memcpy(ms.pData, &toVSShader, sizeof(toVSShader));
 	context->Unmap(cBufferVS, NULL);
 
-	context->DrawIndexed(ARRAYSIZE(_3d_planet_indicies), 0, 0);
+	context->Map(cBufferPS, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
+	memcpy(ms.pData, &toPSShader, sizeof(toPSShader));
+	context->Unmap(cBufferPS, NULL);
 
+	context->DrawIndexed(7140, 0, 0);
 	//
-	//DRAW CUBES ONTO A TEXTURE TO BE RENDERED
+	// DRAW EXAMPLE CUBE 1
+	//
+	context->IASetVertexBuffers(0, 1, &vBuffers[1], &stride, &offset);
+	context->IASetIndexBuffer(iBuffers[1], DXGI_FORMAT_R16_UINT, offset);
+
+	context->PSSetShaderResources(0, 1, &diffuseViews[8]);
+	context->PSSetShaderResources(4, 1, pSRV);
+
+	worldMatricies[1] = DirectX::XMMatrixTranslation(-1.5f, 1.0f, 0.0f);
+	toVSShader.worldMatrix = worldMatricies[1];
+
+	toPSShader.hasNormMap = 0;
+	toPSShader.hasSecondTexture = 0;
+	toPSShader.isRTT = 0;
+
+	context->Map(cBufferVS, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
+	memcpy(ms.pData, &toVSShader, sizeof(toVSShader));
+	context->Unmap(cBufferVS, NULL);
+
+	context->Map(cBufferPS, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
+	memcpy(ms.pData, &toPSShader, sizeof(toPSShader));
+	context->Unmap(cBufferPS, NULL);
+
+	context->DrawIndexed(36, 0, 0);
+	//
+	// DRAW EXAMPLE CUBE 2
+	//
+	worldMatricies[10] = DirectX::XMMatrixTranslation(-1.0f, 1.0f, 0.0f);
+	toVSShader.worldMatrix = worldMatricies[10];
+
+	context->PSSetShaderResources(4, 1, &normMaps[1]);
+
+	toPSShader.hasNormMap = 1;
+	toPSShader.hasSecondTexture = 0;
+	toPSShader.isRTT = 0;
+
+	context->Map(cBufferVS, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
+	memcpy(ms.pData, &toVSShader, sizeof(toVSShader));
+	context->Unmap(cBufferVS, NULL);
+
+	context->Map(cBufferPS, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
+	memcpy(ms.pData, &toPSShader, sizeof(toPSShader));
+	context->Unmap(cBufferPS, NULL);
+
+	context->DrawIndexed(36, 0, 0);
+	//
+	// DRAW STONEHENGE ONTO A TEXTURE TO BE RENDERED
 	//
 	context->OMSetRenderTargets(1, &rtt_rtv, rtt_dsv);
 	arr[0] = 1.0f;
@@ -1104,15 +1210,11 @@ bool DEMO_APP::Run()
 	context->ClearRenderTargetView(rtt_rtv, arr);
 	context->ClearDepthStencilView(rtt_dsv, D3D11_CLEAR_DEPTH, 1.0f, 1.0f);
 
-	//
-	// DRAW STONEHENGE ONTO A TEXTURE TO BE RENDERED
-	//
 	context->IASetVertexBuffers(0, 1, &vBuffers[3], &stride, &offset);
 	context->IASetIndexBuffer(iBuffers[3], DXGI_FORMAT_R16_UINT, offset);
 
 	context->PSSetShaderResources(0, 1, &diffuseViews[3]);
 	context->PSSetShaderResources(3, 1, pSRV);
-	//context->PSSetSamplers(0, 1, &samplerStates[3]);
 
 	worldMatricies[4] = DirectX::XMMatrixTranslation(0.0f, -15.0f, 15.0f);
 	worldMatricies[4] = DirectX::XMMatrixMultiply(DirectX::XMMatrixRotationY(timer * 0.3f), worldMatricies[4]);
@@ -1120,15 +1222,34 @@ bool DEMO_APP::Run()
 	toVSShader.viewMatrix = rtt_viewMatrix;
 	toVSShader.projectionMatrix = rtt_projectionMatrix;
 
+	//toPSShader.lights[0].lightPosition = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+	//toPSShader.lights[0].lightDirection = DirectX::XMFLOAT3(-0.3f, -sin(timer * 0.6f), -sin(timer * 0.6f));
+	//toPSShader.lights[0].lightColor = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f);
+	//toPSShader.pointLights[0].lightPosition = DirectX::XMFLOAT4(0.0f, -12.0f, 20.0f, 1.0f);
+	//toPSShader.pointLights[0].lightDirection = DirectX::XMFLOAT3(0.3f, 0.3f, 0.3f);
+	//toPSShader.pointLights[0].lightColor = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	//toPSShader.lights[2].lightPosition = DirectX::XMFLOAT4(sin(timer * 1.5f), 2.0f, -sin(timer * 1.5f), 1.0f);
+	//toPSShader.lights[2].lightDirection = DirectX::XMFLOAT3(0.0f, -1.0f, 0.6f);
+	//toPSShader.lights[2].lightColor = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f);
+	//toPSShader.ambientColor = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	toPSShader.hasNormMap = 0;
+	toPSShader.hasSecondTexture = 0;
+	toPSShader.isRTT = 1;
+
 	context->Map(cBufferVS, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
 	memcpy(ms.pData, &toVSShader, sizeof(toVSShader));
 	context->Unmap(cBufferVS, NULL);
+
+	context->Map(cBufferPS, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
+	memcpy(ms.pData, &toPSShader, sizeof(toPSShader));
+	context->Unmap(cBufferPS, NULL);
 
 	context->DrawIndexed(ARRAYSIZE(StoneHenge_indicies), 0, 0);
 
 	context->GenerateMips(rtt_shaderResource);
 
 	swapChain->Present(0, 0);
+
 
 	return true;
 }
@@ -1158,7 +1279,7 @@ bool DEMO_APP::ShutDown()
 	skyBox_inputLayout->Release();
 	rtt_depthBuffer->Release();
 	rtt_dsv->Release();
-	rtt_ps->Release();
+	//rtt_ps->Release();
 	rtt_rtv->Release();
 	rtt_shaderResource->Release();
 	rtt_texture->Release();
@@ -1220,7 +1341,7 @@ LRESULT CALLBACK DEMO_APP::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
 	{
 		if (myApp)
 		{
-			myApp->context->OMSetRenderTargets(0, 0, 0);
+			//myApp->context->OMSetRenderTargets(0, 0, 0);
 
 			myApp->rtv->Release();
 
