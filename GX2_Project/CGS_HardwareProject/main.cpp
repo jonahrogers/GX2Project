@@ -1,14 +1,3 @@
-// CGS HW Project A "Line Land".
-// Author: L.Norri CD CGS, FullSail University
-
-// Introduction:
-// Welcome to the hardware project of the Computer Graphics Systems class.
-// This assignment is fully guided but still requires significant effort on your part. 
-// Future classes will demand the habits & foundation you develop right now!  
-// It is CRITICAL that you follow each and every step. ESPECIALLY THE READING!!!
-
-// TO BEGIN: Open the word document that acompanies this project and start from the top.
-
 //************************************************************
 //************ INCLUDES & DEFINES ****************************
 //************************************************************
@@ -34,6 +23,7 @@
 #define NUM_OF_DVIEWS 9
 #define NUM_OF_SSTATES 1
 #define NUM_OF_NORMMAPS 2
+#define MAX_LIGHTS 3
 
 using namespace std;
 
@@ -98,7 +88,7 @@ class DEMO_APP
 	ID3D11GeometryShader* gs;
 	ID3D11VertexShader* skyBox_vs;
 	ID3D11PixelShader* skyBox_ps;
-	ID3D11PixelShader* rtt_ps;
+	//ID3D11PixelShader* rtt_ps;
 
 	ID3D11Buffer* cBufferVS;
 	D3D11_BUFFER_DESC cBufferVSDesc = {};
@@ -114,25 +104,30 @@ class DEMO_APP
 	POINT tempPointDown = { MININT, MININT };
 	DirectX::XMMATRIX projectionMatrix;
 
-	struct DIRLIGHTS
+	struct MATERIAL
 	{
-		DirectX::XMFLOAT3 lightDirection;
-		float padding;
-		DirectX::XMFLOAT4 lightColor;
+		DirectX::XMFLOAT4 emissive;
+		DirectX::XMFLOAT4 ambient;
+		DirectX::XMFLOAT4 diffuse;
+		DirectX::XMFLOAT4 specular;
+
+		int specularPower;
+
+		DirectX::XMFLOAT3 padding;
 	};
 
-	struct POINTLIGHTS
+	struct LIGHTS
 	{
+		DirectX::XMFLOAT4 lightDirection;
 		DirectX::XMFLOAT4 lightPosition;
 		DirectX::XMFLOAT4 lightColor;
-	};
 
-	struct SPOTLIGHTS
-	{
-		DirectX::XMFLOAT3 lightDirection;
-		float padding;
-		DirectX::XMFLOAT4 lightPosition;
-		DirectX::XMFLOAT4 lightColor;
+		int lightType;
+		int enabled;
+
+		//int specularPower;
+
+		DirectX::XMFLOAT2 padding;
 	};
 
 	struct SEND_TO_VS
@@ -149,15 +144,16 @@ class DEMO_APP
 
 	struct SEND_TO_PS
 	{
-		DIRLIGHTS dirLights[1];
-		POINTLIGHTS pointLights[1];
-		SPOTLIGHTS spotLights[1];
-		DirectX::XMFLOAT4 ambientColor;
+		MATERIAL materialProperties;
+
+		LIGHTS lights[MAX_LIGHTS];
+		DirectX::XMFLOAT4 globalAmbientColor;
+		DirectX::XMFLOAT4 eyePosition;
 		//DirectX::XMFLOAT4 emissiveValue;
 
-		float hasSecondTexture;
-		float hasNormMap;
-		float isRTT;
+		int hasSecondTexture;
+		int hasNormMap;
+		int isRTT;
 
 		float padding;
 	};
@@ -171,9 +167,7 @@ public:
 		DirectX::XMFLOAT3 pos;
 		DirectX::XMFLOAT3 normal;
 		DirectX::XMFLOAT2 texCoords;
-
 		DirectX::XMFLOAT3 tangent;
-		//DirectX::XMFLOAT3 biTangent;
 	};
 
 	struct SKYBOX_VERTEX
@@ -191,7 +185,7 @@ public:
 	void CheckCameraInput();
 	bool LoadObjHeader(const OBJ_VERT* data, int dataSize, const unsigned int* indicies, int indiciesSize, int vBuffer, int iBuffer);
 	void DEMO_APP::CalculateTangent(SIMPLE_VERTEX* data, unsigned int dataSize, short* indicies, unsigned int indiciesSize);
-		int LoadObjFile(const char* path, unsigned int vBuffer, unsigned int iBuffer);
+	int LoadObjFile(const char* path, unsigned int vBuffer, unsigned int iBuffer);
 	void MakeVertexBuffer(ID3D11Buffer** buffer, int size, SIMPLE_VERTEX* data);
 	void MakeVertexBuffer(ID3D11Buffer** buffer, int size, SKYBOX_VERTEX* data);
 	void MakeIndexBuffer(ID3D11Buffer** buffer, int size, short* data);
@@ -633,7 +627,6 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	viewport.TopLeftX = 0;
 	viewport.TopLeftY = 0;
 
-
 	D3D11_TEXTURE2D_DESC rttDesc;
 	ZeroMemory(&rttDesc, sizeof(rttDesc));
 	rttDesc.Width = backBuffer_width;
@@ -791,22 +784,6 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	
 #endif
 
-	MakeVertexBuffer(&vBuffers[1], ARRAYSIZE(cubeVerts), cubeVerts);
-	MakeIndexBuffer(&iBuffers[1], ARRAYSIZE(triangleVerts), triangleVerts);
-
-	result = CreateDDSTextureFromFile(device, L"greendragon.dds", nullptr, &diffuseViews[1]);
-	result = CreateDDSTextureFromFile(device, L"Barrel.dds", nullptr, &diffuseViews[2]);
-	result = CreateDDSTextureFromFile(device, L"StoneHenge.dds", nullptr, &diffuseViews[3]);
-	result = CreateDDSTextureFromFile(device, L"earthmap1k.dds", nullptr, &diffuseViews[4]);
-	result = CreateDDSTextureFromFile(device, L"earthcloudmap.dds", nullptr, &diffuseViews[5]);
-	result = CreateDDSTextureFromFile(device, L"moonmap1k.dds", nullptr, &diffuseViews[6]);
-	result = CreateDDSTextureFromFile(device, L"sunmap.dds", nullptr, &diffuseViews[7]);
-	
-	result = CreateDDSTextureFromFile(device, L"moonbump1k.dds", nullptr, &normMaps[0]);
-
-	result = CreateDDSTextureFromFile(device, L"stone01.dds", nullptr, &diffuseViews[8]);
-	result = CreateDDSTextureFromFile(device, L"bump01.dds", nullptr, &normMaps[1]);
-
 	MakeVertexBuffer(&vBuffers[0], ARRAYSIZE(cubeMapVerts), cubeMapVerts);
 	MakeIndexBuffer(&iBuffers[0], ARRAYSIZE(cubeMapTriangleVerts), cubeMapTriangleVerts);
 
@@ -821,6 +798,31 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	cubeMapSampDesc.MinLOD = 0;
 	cubeMapSampDesc.MaxLOD = D3D11_FLOAT32_MAX;
 	result = device->CreateSamplerState(&cubeMapSampDesc, &samplerStates[0]);
+
+	int num = LoadObjFile("Barrel.obj", 5, 5);
+
+	//LoadObjHeader(_3d_planet_data, ARRAYSIZE(_3d_planet_data), _3d_planet_indicies, ARRAYSIZE(_3d_planet_indicies), 4, 4);
+
+	MakeVertexBuffer(&vBuffers[1], ARRAYSIZE(cubeVerts), cubeVerts);
+	MakeIndexBuffer(&iBuffers[1], ARRAYSIZE(triangleVerts), triangleVerts);
+	result = CreateDDSTextureFromFile(device, L"greendragon.dds", nullptr, &diffuseViews[1]);
+
+	LoadObjHeader(Barrel_data, ARRAYSIZE(Barrel_data), Barrel_indicies, ARRAYSIZE(Barrel_indicies), 2, 2);
+	result = CreateDDSTextureFromFile(device, L"Barrel.dds", nullptr, &diffuseViews[2]);
+
+	LoadObjHeader(StoneHenge_data, ARRAYSIZE(StoneHenge_data), StoneHenge_indicies, ARRAYSIZE(StoneHenge_indicies), 3, 3);
+	result = CreateDDSTextureFromFile(device, L"StoneHenge.dds", nullptr, &diffuseViews[3]);
+
+	num = LoadObjFile("3d_planet.obj", 4, 4);
+	result = CreateDDSTextureFromFile(device, L"earthmap1k.dds", nullptr, &diffuseViews[4]);
+	result = CreateDDSTextureFromFile(device, L"earthcloudmap.dds", nullptr, &diffuseViews[5]);
+	result = CreateDDSTextureFromFile(device, L"moonmap1k.dds", nullptr, &diffuseViews[6]);
+	result = CreateDDSTextureFromFile(device, L"moonbump1k.dds", nullptr, &normMaps[0]);
+	result = CreateDDSTextureFromFile(device, L"sunmap.dds", nullptr, &diffuseViews[7]);
+	
+
+	result = CreateDDSTextureFromFile(device, L"stone01.dds", nullptr, &diffuseViews[8]);
+	result = CreateDDSTextureFromFile(device, L"bump01.dds", nullptr, &normMaps[1]);
 
 	result = device->CreateVertexShader(Trivial_VS, sizeof(Trivial_VS), NULL, &vs);
 	result = device->CreatePixelShader(Trivial_PS, sizeof(Trivial_PS), NULL, &ps);
@@ -875,13 +877,6 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	
 	worldMatricies[3] = DirectX::XMMatrixScaling(100.0f, 100.0f, 100.0f);
 	worldMatricies[3].r[3] = cameraMatrix.r[3];
-
-	int num = LoadObjFile("Barrel.obj", 5, 5);
-
-	LoadObjHeader(Barrel_data, ARRAYSIZE(Barrel_data), Barrel_indicies, ARRAYSIZE(Barrel_indicies), 2, 2);
-	LoadObjHeader(StoneHenge_data, ARRAYSIZE(StoneHenge_data), StoneHenge_indicies, ARRAYSIZE(StoneHenge_indicies), 3, 3);
-	//LoadObjHeader(_3d_planet_data, ARRAYSIZE(_3d_planet_data), _3d_planet_indicies, ARRAYSIZE(_3d_planet_indicies), 4, 4);
-	num = LoadObjFile("3d_planet.obj", 4, 4);
 }
 
 //************************************************************
@@ -947,16 +942,28 @@ bool DEMO_APP::Run()
 	toVSShader.viewMatrix = viewMatrix;
 	toVSShader.projectionMatrix = projectionMatrix;
 
-	//toPSShader.dirLights[0].lightPosition = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
-	toPSShader.dirLights[0].lightDirection = DirectX::XMFLOAT3(-0.3f, -cos(timer * 0.6f), -cos(timer * 0.6f));
-	toPSShader.dirLights[0].lightColor = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-	toPSShader.pointLights[0].lightPosition = DirectX::XMFLOAT4(1.5f, 0.5f, cos(timer), 1.0f);
-	//toPSShader.pointLights[0].lightDirection = DirectX::XMFLOAT3(0.3f, 0.3f, 0.3f);
-	toPSShader.pointLights[0].lightColor = DirectX::XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f);
-	toPSShader.spotLights[0].lightPosition = DirectX::XMFLOAT4(cos(timer * 1.5f), 2.0f, -cos(timer * 0.5f), 1.0f);
-	toPSShader.spotLights[0].lightDirection = DirectX::XMFLOAT3(0.0f, -1.0f, 0.6f);
-	toPSShader.spotLights[0].lightColor = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-	toPSShader.ambientColor = DirectX::XMFLOAT4(0.2f, 0.2f, 0.2f, 1.0f);
+	toPSShader.materialProperties.emissive = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+	toPSShader.materialProperties.ambient = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	toPSShader.materialProperties.diffuse = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	toPSShader.materialProperties.specular = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+	toPSShader.materialProperties.specularPower = 64;
+	toPSShader.lights[0].lightDirection = DirectX::XMFLOAT4(-0.3f, -cos(timer * 0.4f), -cos(timer * 0.4f), 1.0f);
+	toPSShader.lights[0].lightPosition = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+	toPSShader.lights[0].lightColor = DirectX::XMFLOAT4(0.7f, 0.7f, 0.7f, 1.0f);
+	toPSShader.lights[0].lightType = 0;
+	toPSShader.lights[0].enabled = 1;
+	toPSShader.lights[1].lightDirection = DirectX::XMFLOAT4(0.3f, 0.3f, 0.3f, 1.0f);
+	toPSShader.lights[1].lightPosition = DirectX::XMFLOAT4(1.5f, 0.5f, cos(timer), 1.0f);
+	toPSShader.lights[1].lightColor = DirectX::XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f);
+	toPSShader.lights[1].lightType = 1;
+	toPSShader.lights[1].enabled = 1;
+	toPSShader.lights[2].lightDirection = DirectX::XMFLOAT4(0.0f, -1.0f, 0.6f, 1.0f);
+	toPSShader.lights[2].lightPosition = DirectX::XMFLOAT4(cos(timer * 1.5f), 2.0f, -cos(timer * 0.5f), 1.0f);
+	toPSShader.lights[2].lightColor = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	toPSShader.lights[2].lightType = 2;
+	toPSShader.lights[2].enabled = 1;
+	toPSShader.globalAmbientColor = DirectX::XMFLOAT4(0.2f, 0.2f, 0.2f, 1.0f);
+	toPSShader.eyePosition = DirectX::XMFLOAT4(viewMatrix.r[3].m128_f32[0], viewMatrix.r[3].m128_f32[1], viewMatrix.r[3].m128_f32[2], viewMatrix.r[3].m128_f32[3]);
 	toPSShader.hasNormMap = 0;
 	toPSShader.hasSecondTexture = 0;
 	toPSShader.isRTT = 0;
@@ -999,6 +1006,11 @@ bool DEMO_APP::Run()
 	worldMatricies[8] = DirectX::XMMatrixMultiply(DirectX::XMMatrixScaling(10.0f, 1.0f, 10.0f), worldMatricies[8]);
 	toVSShader.worldMatrix = worldMatricies[8];
 
+	toPSShader.materialProperties.emissive = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+	toPSShader.materialProperties.ambient = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	toPSShader.materialProperties.diffuse = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	toPSShader.materialProperties.specular = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+	toPSShader.materialProperties.specularPower = 64;
 	toPSShader.hasNormMap = 0;
 	toPSShader.hasSecondTexture = 0;
 	toPSShader.isRTT = 0;
@@ -1053,6 +1065,11 @@ bool DEMO_APP::Run()
 	worldMatricies[9] = DirectX::XMMatrixMultiply(DirectX::XMMatrixScaling(0.05f, 0.05f, 0.05f), worldMatricies[9]);
 	toVSShader.worldMatrix = worldMatricies[9];
 
+	toPSShader.materialProperties.emissive = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+	toPSShader.materialProperties.ambient = DirectX::XMFLOAT4(0.19125f, 0.0735f, 0.0225f, 1.0f);
+	toPSShader.materialProperties.diffuse = DirectX::XMFLOAT4(0.7038f, 0.27048f, 0.0828f, 1.0f);
+	toPSShader.materialProperties.specular = DirectX::XMFLOAT4(0.256777f, 0.137622f, 0.086014f, 1.0f);
+	toPSShader.materialProperties.specularPower = 12.8;
 	toPSShader.hasNormMap = 0;
 	toPSShader.hasSecondTexture = 0;
 	toPSShader.isRTT = 0;
@@ -1087,10 +1104,14 @@ bool DEMO_APP::Run()
 	worldMatricies[5] = DirectX::XMMatrixMultiply(DirectX::XMMatrixScaling(0.3f, 0.3f, 0.3f), worldMatricies[5]);
 	toVSShader.worldMatrix = worldMatricies[5];
 
+	toPSShader.materialProperties.emissive = DirectX::XMFLOAT4(0.8f, 0.8f, 0.8f, 1.0f);
+	toPSShader.materialProperties.ambient = DirectX::XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
+	toPSShader.materialProperties.diffuse = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	toPSShader.materialProperties.specular = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+	toPSShader.materialProperties.specularPower = 10;
 	toPSShader.hasNormMap = 0;
 	toPSShader.hasSecondTexture = 0;
 	toPSShader.isRTT = 0;
-	//toPSShader.emissiveValue = DirectX::XMFLOAT4(1.0f, 0.1f, 0.1f, 1.0f);
 
 	context->Map(cBufferVS, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
 	memcpy(ms.pData, &toVSShader, sizeof(toVSShader));
@@ -1105,7 +1126,7 @@ bool DEMO_APP::Run()
 	// DRAW THE EARTH
 	//
 	context->PSSetShaderResources(0, 1, &diffuseViews[4]);
-	context->PSSetShaderResources(3, 1, &diffuseViews[5]);
+	context->PSSetShaderResources(2, 1, &diffuseViews[5]);
 
 	worldMatricies[6] = DirectX::XMMatrixTranslation(worldMatricies[5].r[3].m128_f32[0] + 0.0f, worldMatricies[5].r[3].m128_f32[1] + 0.0f, worldMatricies[5].r[3].m128_f32[2] + 0.0f);
 	worldMatricies[6] = DirectX::XMMatrixMultiply(DirectX::XMMatrixMultiply(DirectX::XMMatrixTranslation(250.0f, 0.0f, 0.0f), DirectX::XMMatrixRotationY(timer * 0.15f)), worldMatricies[6]);
@@ -1113,10 +1134,14 @@ bool DEMO_APP::Run()
 	worldMatricies[6] = DirectX::XMMatrixMultiply(DirectX::XMMatrixScaling(0.1f, 0.1f, 0.1f), worldMatricies[6]);
 	toVSShader.worldMatrix = worldMatricies[6];
 
+	toPSShader.materialProperties.emissive = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+	toPSShader.materialProperties.ambient = DirectX::XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
+	toPSShader.materialProperties.diffuse = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	toPSShader.materialProperties.specular = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+	toPSShader.materialProperties.specularPower = 5;
 	toPSShader.hasNormMap = 0;
 	toPSShader.hasSecondTexture = 1;
 	toPSShader.isRTT = 0;
-	//toPSShader.emissiveValue = DirectX::XMFLOAT4(1.0f, 0.1f, 0.1f, 0.0f);
 
 	context->Map(cBufferVS, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
 	memcpy(ms.pData, &toVSShader, sizeof(toVSShader));
@@ -1131,16 +1156,21 @@ bool DEMO_APP::Run()
 	// DRAW THE MOON
 	//
 	context->PSSetShaderResources(0, 1, &diffuseViews[6]);
-	context->PSSetShaderResources(3, 1, pSRV);
-	context->PSSetShaderResources(4, 1, &normMaps[0]);
+	context->PSSetShaderResources(2, 1, pSRV);
+	context->PSSetShaderResources(3, 1, &normMaps[0]);
 
-	worldMatricies[7] = DirectX::XMMatrixTranslation(0.0f, 0.0f, 50.0f);
-	//worldMatricies[7] = DirectX::XMMatrixTranslation(worldMatricies[6].r[3].m128_f32[0] + 0.0f, worldMatricies[6].r[3].m128_f32[1] + 0.0f, worldMatricies[6].r[3].m128_f32[2] + 0.0f);
-	//worldMatricies[7] = DirectX::XMMatrixMultiply(DirectX::XMMatrixMultiply(DirectX::XMMatrixTranslation(-100.0f, 0.0f, 0.0f), DirectX::XMMatrixRotationY(timer * 0.7f)), worldMatricies[7]);
+	//worldMatricies[7] = DirectX::XMMatrixTranslation(0.0f, 0.0f, 50.0f);
+	worldMatricies[7] = DirectX::XMMatrixTranslation(worldMatricies[6].r[3].m128_f32[0] + 0.0f, worldMatricies[6].r[3].m128_f32[1] + 0.0f, worldMatricies[6].r[3].m128_f32[2] + 0.0f);
+	worldMatricies[7] = DirectX::XMMatrixMultiply(DirectX::XMMatrixMultiply(DirectX::XMMatrixTranslation(-100.0f, 0.0f, 0.0f), DirectX::XMMatrixRotationY(timer * 0.7f)), worldMatricies[7]);
 	worldMatricies[7] = DirectX::XMMatrixMultiply(DirectX::XMMatrixRotationY(timer * 0.65f), worldMatricies[7]);
 	worldMatricies[7] = DirectX::XMMatrixMultiply(DirectX::XMMatrixScaling(0.05f, 0.05f, 0.05f), worldMatricies[7]);
 	toVSShader.worldMatrix = worldMatricies[7];
 
+	toPSShader.materialProperties.emissive = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+	toPSShader.materialProperties.ambient = DirectX::XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
+	toPSShader.materialProperties.diffuse = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	toPSShader.materialProperties.specular = DirectX::XMFLOAT4(0.3f, 0.3f, 0.3f, 1.0f);
+	toPSShader.materialProperties.specularPower = 10;
 	toPSShader.hasNormMap = 1;
 	toPSShader.hasSecondTexture = 0;
 	toPSShader.isRTT = 0;
@@ -1161,12 +1191,17 @@ bool DEMO_APP::Run()
 	context->IASetIndexBuffer(iBuffers[1], DXGI_FORMAT_R16_UINT, offset);
 
 	context->PSSetShaderResources(0, 1, &diffuseViews[8]);
-	context->PSSetShaderResources(4, 1, pSRV);
+	context->PSSetShaderResources(3, 1, &normMaps[1]);
 
 	worldMatricies[1] = DirectX::XMMatrixTranslation(-1.5f, 1.0f, 0.0f);
 	toVSShader.worldMatrix = worldMatricies[1];
 
-	toPSShader.hasNormMap = 0;
+	toPSShader.materialProperties.emissive = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+	toPSShader.materialProperties.ambient = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	toPSShader.materialProperties.diffuse = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	toPSShader.materialProperties.specular = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
+	toPSShader.materialProperties.specularPower = 45;
+	toPSShader.hasNormMap = 1;
 	toPSShader.hasSecondTexture = 0;
 	toPSShader.isRTT = 0;
 
@@ -1185,8 +1220,13 @@ bool DEMO_APP::Run()
 	worldMatricies[10] = DirectX::XMMatrixTranslation(-1.0f, 1.0f, 0.0f);
 	toVSShader.worldMatrix = worldMatricies[10];
 
-	context->PSSetShaderResources(4, 1, &normMaps[1]);
+	//context->PSSetShaderResources(3, 1, &normMaps[1]);
 
+	toPSShader.materialProperties.emissive = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+	toPSShader.materialProperties.ambient = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	toPSShader.materialProperties.diffuse = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	toPSShader.materialProperties.specular = DirectX::XMFLOAT4(0.6f, 0.6f, 0.6f, 1.0f);
+	toPSShader.materialProperties.specularPower = 45;
 	toPSShader.hasNormMap = 1;
 	toPSShader.hasSecondTexture = 0;
 	toPSShader.isRTT = 0;
@@ -1222,16 +1262,6 @@ bool DEMO_APP::Run()
 	toVSShader.viewMatrix = rtt_viewMatrix;
 	toVSShader.projectionMatrix = rtt_projectionMatrix;
 
-	//toPSShader.lights[0].lightPosition = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
-	//toPSShader.lights[0].lightDirection = DirectX::XMFLOAT3(-0.3f, -sin(timer * 0.6f), -sin(timer * 0.6f));
-	//toPSShader.lights[0].lightColor = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f);
-	//toPSShader.pointLights[0].lightPosition = DirectX::XMFLOAT4(0.0f, -12.0f, 20.0f, 1.0f);
-	//toPSShader.pointLights[0].lightDirection = DirectX::XMFLOAT3(0.3f, 0.3f, 0.3f);
-	//toPSShader.pointLights[0].lightColor = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-	//toPSShader.lights[2].lightPosition = DirectX::XMFLOAT4(sin(timer * 1.5f), 2.0f, -sin(timer * 1.5f), 1.0f);
-	//toPSShader.lights[2].lightDirection = DirectX::XMFLOAT3(0.0f, -1.0f, 0.6f);
-	//toPSShader.lights[2].lightColor = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f);
-	//toPSShader.ambientColor = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	toPSShader.hasNormMap = 0;
 	toPSShader.hasSecondTexture = 0;
 	toPSShader.isRTT = 1;
@@ -1259,7 +1289,7 @@ bool DEMO_APP::Run()
 //************************************************************
 
 bool DEMO_APP::ShutDown()
-{
+{	
 	swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&backBuffer);
 	backBuffer->Release();
 	device->Release();
@@ -1279,7 +1309,6 @@ bool DEMO_APP::ShutDown()
 	skyBox_inputLayout->Release();
 	rtt_depthBuffer->Release();
 	rtt_dsv->Release();
-	//rtt_ps->Release();
 	rtt_rtv->Release();
 	rtt_shaderResource->Release();
 	rtt_texture->Release();
@@ -1300,6 +1329,14 @@ bool DEMO_APP::ShutDown()
 	{
 		samplerStates[i]->Release();
 	}
+	//for (unsigned int i = 0; i < NUM_OF_NORMMAPS; ++i)
+	//{
+	//	normMaps[i]->Release();
+	//}
+
+	ID3D11Debug* debug;
+	device->QueryInterface(IID_PPV_ARGS(&debug));
+	debug->ReportLiveDeviceObjects(D3D11_RLDO_DETAIL);
 
 	UnregisterClass(L"DirectXApplication", application);
 	return true;
