@@ -3,7 +3,6 @@
 struct INPUT_VERTEX
 {
 	float3 coordinate : POSITION;
-	float2 tex : TEXCOORD0;
 };
 
 struct OUTPUT_VERTEX_SKYBOX
@@ -12,7 +11,7 @@ struct OUTPUT_VERTEX_SKYBOX
 	float3 texOut : TEXCOORD0;
 };
 
-cbuffer THIS_IS_OTHER_VRAM : register(b2)
+cbuffer THIS_IS_OTHER_VRAM : register(b0)
 {
 	float4x4 worldMatrix;
 	float4x4 viewMatrix;

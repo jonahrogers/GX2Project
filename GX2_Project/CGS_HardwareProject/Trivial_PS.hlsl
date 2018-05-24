@@ -12,6 +12,8 @@ struct OUTPUT_GEOMETRY
 	float4 worldPos : POSITION;
 
 	float3 tangent : TANGENT;
+
+	uint renderTarget : SV_VIEWPORTARRAYINDEX;
 };
 
 texture2D baseTexture : register(t0);
@@ -64,16 +66,15 @@ float4 main(OUTPUT_GEOMETRY vertex) : SV_TARGET
 {
 	float4 color = 0;
 
-
 	float4 totalEmissive = 0;
 	float4 totalAmbient = 0;
 	float4 totalDiffuse = 0;
 	float4 totalSpecular = 0;
 
-	uint width = 0;
-	uint height = 0;
+	//uint width = 0;
+	//uint height = 0;
 
-	otherTexture.GetDimensions(width, height);
+	//otherTexture.GetDimensions(width, height);
 
 	if (hasSecondTexture == 0)
 	{
@@ -107,58 +108,61 @@ float4 main(OUTPUT_GEOMETRY vertex) : SV_TARGET
 	{
 		for (unsigned int i = 0; i < MAX_LIGHTS; ++i)
 		{
-			switch (lights[i].lightType)
+			if (lights[i].enabled)
 			{
-			case 0: // for directional light
-			{
-				float3 lightDir = -normalize(lights[i].lightDirection.xyz);
-				float lightRatioDir = saturate(dot(lightDir, vertex.normal));
-				lightRatioDir = saturate(lightRatioDir + globalAmbientColor);
-				totalDiffuse += lightRatioDir * lights[i].lightColor;
+				switch (lights[i].lightType)
+				{
+				case DIRECTIONAL_LIGHT: // for directional light
+				{
+					float3 lightDir = -normalize(lights[i].lightDirection.xyz);
+					float lightRatioDir = saturate(dot(lightDir, vertex.normal));
+					lightRatioDir = saturate(lightRatioDir + globalAmbientColor);
+					totalDiffuse += lightRatioDir * lights[i].lightColor;
 
-				float3 viewDir = -normalize(eyePosition.xyz);
-				float3 reflect = -lightDir - 2 * vertex.normal * dot(-lightDir, vertex.normal);//normalize(reflect(-lightDir, vertex.normal));
-				float specRatio = saturate(dot(reflect, viewDir));
-				totalSpecular += lights[i].lightColor * pow(specRatio, materialProperties.specularPower);
-			}
-			break;
-			case 1: // for point light
-			{
-				float3 lightPoint = (normalize(lights[i].lightPosition - vertex.worldPos)).xyz;
-				float lightRatioPoint = saturate(dot(lightPoint, vertex.normal));
-				float attenuationPoint = 1.0f - saturate(length(lights[i].lightPosition.xyz - vertex.worldPos.xyz) / 10.0f);
-				attenuationPoint *= attenuationPoint;
-				lightRatioPoint = saturate((lightRatioPoint * attenuationPoint));
-				totalDiffuse += lightRatioPoint * lights[i].lightColor;
-
-				float3 viewDir = -normalize(eyePosition.xyz);
-				float3 reflect = normalize(lights[i].lightDirection.xyz) - 2 * vertex.normal * dot(normalize(lights[i].lightDirection.xyz), vertex.normal); //normalize(reflect(normalize(lights[i].lightDirection.xyz), vertex.normal));
-				float specRatio = saturate(dot(reflect, viewDir));
-				totalSpecular += lightRatioPoint * lights[i].lightColor * pow(specRatio, materialProperties.specularPower);
-			}
-			break;
-			case 2: // for spot light
-			{
-				float3 lightSpot = normalize(lights[i].lightPosition.xyz - vertex.worldPos.xyz);
-				float surfaceRatio = saturate(dot(-lightSpot, lights[i].lightDirection));
-				float spotFactor;
-				if (surfaceRatio > -1)
-					spotFactor = 1;
-				else
-					spotFactor = 0;
-				float lightRatioSpot = saturate(dot(lightSpot, vertex.normal));
-				float attenuationSpot = 1.0f - saturate((1.0f - surfaceRatio) / (1.0f - 0.9f));
-				lightRatioSpot = saturate((lightRatioSpot * attenuationSpot));
-				totalDiffuse += spotFactor * lightRatioSpot * lights[i].lightColor;
-
-				float3 viewDir = -normalize(eyePosition.xyz);
-				float3 reflect = normalize(lights[i].lightDirection.xyz) - 2 * vertex.normal * dot(normalize(lights[i].lightDirection.xyz), vertex.normal); //normalize(reflect(normalize(lights[i].lightDirection.xyz), vertex.normal));
-				float specRatio = saturate(dot(reflect, viewDir));
-				totalSpecular += spotFactor * lights[i].lightColor * pow(specRatio, materialProperties.specularPower);
-			}
-			break;
-			default:
+					float3 viewDir = -normalize(eyePosition.xyz);
+					float3 reflect = -lightDir - 2 * vertex.normal * dot(-lightDir, vertex.normal);
+					float specRatio = saturate(dot(reflect, viewDir));
+					totalSpecular += lights[i].lightColor * pow(specRatio, materialProperties.specularPower);
+				}
 				break;
+				case POINT_LIGHT: // for point light
+				{
+					float3 lightPoint = (normalize(lights[i].lightPosition - vertex.worldPos)).xyz;
+					float lightRatioPoint = saturate(dot(lightPoint, vertex.normal));
+					float attenuationPoint = 1.0f - saturate(length(lights[i].lightPosition.xyz - vertex.worldPos.xyz) / 2.5f);
+					attenuationPoint *= attenuationPoint;
+					lightRatioPoint = saturate((lightRatioPoint * attenuationPoint));
+					totalDiffuse += lightRatioPoint * lights[i].lightColor;
+
+					float3 viewDir = -normalize(eyePosition.xyz);
+					float3 reflect = normalize(lights[i].lightDirection.xyz) - 2 * vertex.normal * dot(normalize(lights[i].lightDirection.xyz), vertex.normal);
+					float specRatio = saturate(dot(reflect, viewDir));
+					totalSpecular += lightRatioPoint * lights[i].lightColor * pow(specRatio, materialProperties.specularPower);
+				}
+				break;
+				case SPOT_LIGHT: // for spot light
+				{
+					float3 lightSpot = normalize(lights[i].lightPosition.xyz - vertex.worldPos.xyz);
+					float surfaceRatio = saturate(dot(-lightSpot, lights[i].lightDirection));
+					float spotFactor;
+					if (surfaceRatio > -1)
+						spotFactor = 1;
+					else
+						spotFactor = 0;
+					float lightRatioSpot = saturate(dot(lightSpot, vertex.normal));
+					float attenuationSpot = 1.0f - saturate((1.0f - surfaceRatio) / (1.0f - 0.9f));
+					lightRatioSpot = saturate((lightRatioSpot * attenuationSpot));
+					totalDiffuse += spotFactor * lightRatioSpot * lights[i].lightColor;
+
+					float3 viewDir = -normalize(eyePosition.xyz);
+					float3 reflect = normalize(lights[i].lightDirection.xyz) - 2 * vertex.normal * dot(normalize(lights[i].lightDirection.xyz), vertex.normal);
+					float specRatio = saturate(dot(reflect, viewDir));
+					totalSpecular += spotFactor * lights[i].lightColor * pow(specRatio, materialProperties.specularPower);
+				}
+				break;
+				default:
+					break;
+				}
 			}
 		}
 
@@ -167,7 +171,7 @@ float4 main(OUTPUT_GEOMETRY vertex) : SV_TARGET
 		totalDiffuse = materialProperties.diffuse * totalDiffuse;
 		totalSpecular = materialProperties.specular * totalSpecular;
 
-		color = (totalEmissive + totalAmbient + totalDiffuse + totalSpecular) * color;
+		color = (/*totalEmissive + totalAmbient*/ + totalDiffuse /*+ totalSpecular*/) * color;
 
 		color = saturate(color);
 

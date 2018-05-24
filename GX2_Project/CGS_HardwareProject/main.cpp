@@ -17,12 +17,12 @@
 #define TID_POLLMOUSE 100
 #define MOUSE_POLL_DELAY 5
 
-#define NUM_OF_MATRICIES 11
-#define NUM_OF_VBUFFERS 6
-#define NUM_OF_IBUFFERS 6
-#define NUM_OF_DVIEWS 9
+#define NUM_OF_MATRICIES 13
+#define NUM_OF_VBUFFERS 7
+#define NUM_OF_IBUFFERS 7
+#define NUM_OF_DVIEWS 11
 #define NUM_OF_SSTATES 1
-#define NUM_OF_NORMMAPS 2
+#define NUM_OF_NORMMAPS 3
 #define MAX_LIGHTS 3
 
 using namespace std;
@@ -37,7 +37,6 @@ using namespace std;
 #include "Trivial_GS.csh"
 #include "SkyBox_PS.csh"
 #include "SkyBox_VS.csh"
-//#include "RTT_PS.csh"
 
 //************************************************************
 //************ SIMPLE WINDOWS APP CLASS **********************
@@ -64,7 +63,10 @@ class DEMO_APP
 	ID3D11ShaderResourceView* const pSRV[1] = { NULL };
 
 	ID3D11DepthStencilView* dsv;
-	D3D11_VIEWPORT viewport;
+
+	D3D11_VIEWPORT rtt_viewPort;
+	D3D11_VIEWPORT arrayOfViewports[2];
+
 	DXGI_SWAP_CHAIN_DESC swapChainDesc = {};
 	IDXGISwapChain* swapChain;
 	ID3D11Texture2D* backBuffer;
@@ -88,19 +90,25 @@ class DEMO_APP
 	ID3D11GeometryShader* gs;
 	ID3D11VertexShader* skyBox_vs;
 	ID3D11PixelShader* skyBox_ps;
-	//ID3D11PixelShader* rtt_ps;
 
 	ID3D11Buffer* cBufferVS;
 	D3D11_BUFFER_DESC cBufferVSDesc = {};
 	ID3D11Buffer* cBufferPS;
 	D3D11_BUFFER_DESC cBufferPSDesc = {};
+	ID3D11Buffer* cBufferGS;
+	D3D11_BUFFER_DESC cBufferGSDesc = {};
 	XTime time;
 	float timer = 0.0;
 	float cameraTimer = 0.0;
 
+	float cooldown = 0.0;
+
+	bool enableSecondViewport = false;
+
 	DirectX::XMMATRIX worldMatricies[NUM_OF_MATRICIES];
 	DirectX::XMMATRIX viewMatrix;
 	DirectX::XMMATRIX cameraMatrix;
+	DirectX::XMMATRIX second_cameraMatrix;
 	POINT tempPointDown = { MININT, MININT };
 	DirectX::XMMATRIX projectionMatrix;
 
@@ -125,8 +133,6 @@ class DEMO_APP
 		int lightType;
 		int enabled;
 
-		//int specularPower;
-
 		DirectX::XMFLOAT2 padding;
 	};
 
@@ -149,7 +155,6 @@ class DEMO_APP
 		LIGHTS lights[MAX_LIGHTS];
 		DirectX::XMFLOAT4 globalAmbientColor;
 		DirectX::XMFLOAT4 eyePosition;
-		//DirectX::XMFLOAT4 emissiveValue;
 
 		int hasSecondTexture;
 		int hasNormMap;
@@ -158,8 +163,18 @@ class DEMO_APP
 		float padding;
 	};
 
+	struct SEND_TO_GS
+	{
+		DirectX::XMMATRIX second_viewMatrix;
+
+		float isBarrels;
+
+		DirectX::XMFLOAT3 padding;
+	};
+
 	SEND_TO_VS toVSShader;
 	SEND_TO_PS toPSShader;
+	SEND_TO_GS toGSShader;
 
 public:
 	struct SIMPLE_VERTEX
@@ -173,7 +188,6 @@ public:
 	struct SKYBOX_VERTEX
 	{
 		DirectX::XMFLOAT3 pos;
-		DirectX::XMFLOAT2 texCoords;
 	};
 
 	DEMO_APP(HINSTANCE hinst, WNDPROC proc);
@@ -182,7 +196,7 @@ public:
 
 	static LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wparam, LPARAM lparam);
 
-	void CheckCameraInput();
+	void CheckKeyboardInput();
 	bool LoadObjHeader(const OBJ_VERT* data, int dataSize, const unsigned int* indicies, int indiciesSize, int vBuffer, int iBuffer);
 	void DEMO_APP::CalculateTangent(SIMPLE_VERTEX* data, unsigned int dataSize, short* indicies, unsigned int indiciesSize);
 	int LoadObjFile(const char* path, unsigned int vBuffer, unsigned int iBuffer);
@@ -193,7 +207,7 @@ public:
 
 DEMO_APP* myApp = nullptr;
 
-void DEMO_APP::CheckCameraInput()
+void DEMO_APP::CheckKeyboardInput()
 {
 	if (cameraTimer >= 0.025f)
 	{
@@ -257,11 +271,142 @@ void DEMO_APP::CheckCameraInput()
 
 			cameraTimer = 0.0f;
 		}
+
+		if (enableSecondViewport)
+		{
+			if (GetAsyncKeyState(0x49)) // 'I'
+			{
+				DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(0.0f, 0.0f, 0.05f);
+
+				second_cameraMatrix = DirectX::XMMatrixMultiply(tempM, second_cameraMatrix);
+
+				worldMatricies[11].r[3] = second_cameraMatrix.r[3];
+
+				cameraTimer = 0.0f;
+			}
+			if (GetAsyncKeyState(0x4A)) // 'J'
+			{
+				DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(-0.05f, 0.0f, 0.0f);
+
+				second_cameraMatrix = DirectX::XMMatrixMultiply(tempM, second_cameraMatrix);
+
+				worldMatricies[11].r[3] = second_cameraMatrix.r[3];
+
+				cameraTimer = 0.0f;
+			}
+			if (GetAsyncKeyState(0x4B)) // 'K'
+			{
+				DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(0.0f, 0.0f, -0.05f);
+
+				second_cameraMatrix = DirectX::XMMatrixMultiply(tempM, second_cameraMatrix);
+
+				worldMatricies[11].r[3] = second_cameraMatrix.r[3];
+
+				cameraTimer = 0.0f;
+			}
+			if (GetAsyncKeyState(0x4C)) // 'L'
+			{
+				DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(0.05f, 0.0f, 0.0f);
+
+				second_cameraMatrix = DirectX::XMMatrixMultiply(tempM, second_cameraMatrix);
+
+				worldMatricies[11].r[3] = second_cameraMatrix.r[3];
+
+				cameraTimer = 0.0f;
+			}
+			if (GetAsyncKeyState(0x55)) // 'U'
+			{
+				DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(0.0f, 0.05f, 0.0f);
+
+				second_cameraMatrix = DirectX::XMMatrixMultiply(second_cameraMatrix, tempM);
+
+				worldMatricies[11].r[3] = second_cameraMatrix.r[3];
+
+				cameraTimer = 0.0f;
+			}
+			if (GetAsyncKeyState(0x4F)) // 'O'
+			{
+				DirectX::XMMATRIX tempM = DirectX::XMMatrixTranslation(0.0f, -0.05f, 0.0f);
+
+				second_cameraMatrix = DirectX::XMMatrixMultiply(second_cameraMatrix, tempM);
+
+				worldMatricies[11].r[3] = second_cameraMatrix.r[3];
+
+				cameraTimer = 0.0f;
+			}
+			if (GetAsyncKeyState(VK_LEFT)) // 'LEFT'
+			{
+				DirectX::XMVECTOR tempVector = second_cameraMatrix.r[3];;
+
+				second_cameraMatrix.r[3] = DirectX::XMLoadFloat4(&DirectX::XMFLOAT4(0, 0, 0, 1));
+
+				second_cameraMatrix = DirectX::XMMatrixMultiply(second_cameraMatrix, DirectX::XMMatrixRotationY(-0.05f));
+
+				second_cameraMatrix.r[3] = tempVector;
+
+				cameraTimer = 0.0f;
+			}
+			if (GetAsyncKeyState(VK_RIGHT)) // 'RIGHT'
+			{
+				DirectX::XMVECTOR tempVector = second_cameraMatrix.r[3];;
+
+				second_cameraMatrix.r[3] = DirectX::XMLoadFloat4(&DirectX::XMFLOAT4(0, 0, 0, 1));
+
+				second_cameraMatrix = DirectX::XMMatrixMultiply(second_cameraMatrix, DirectX::XMMatrixRotationY(0.05f));
+
+				second_cameraMatrix.r[3] = tempVector;
+
+				cameraTimer = 0.0f;
+			}
+			if (GetAsyncKeyState(VK_UP)) // 'UP'
+			{
+				DirectX::XMVECTOR tempVector = second_cameraMatrix.r[3];;
+
+				second_cameraMatrix.r[3] = DirectX::XMLoadFloat4(&DirectX::XMFLOAT4(0, 0, 0, 1));
+
+				second_cameraMatrix = DirectX::XMMatrixMultiply(DirectX::XMMatrixRotationX(-0.05f), second_cameraMatrix);
+
+				second_cameraMatrix.r[3] = tempVector;
+
+				cameraTimer = 0.0f;
+			}
+			if (GetAsyncKeyState(VK_DOWN)) // 'DOWN'
+			{
+				DirectX::XMVECTOR tempVector = second_cameraMatrix.r[3];;
+
+				second_cameraMatrix.r[3] = DirectX::XMLoadFloat4(&DirectX::XMFLOAT4(0, 0, 0, 1));
+
+				second_cameraMatrix = DirectX::XMMatrixMultiply(DirectX::XMMatrixRotationX(0.05f), second_cameraMatrix);
+
+				second_cameraMatrix.r[3] = tempVector;
+
+				cameraTimer = 0.0f;
+			}
+		}
 	}
 	else
-	{
 		cameraTimer += time.SmoothDelta();
+
+	if (cooldown >= 0.1f)
+	{
+		if (GetAsyncKeyState(0x32) && cooldown >= 0.1f) // '2'
+		{
+			if (enableSecondViewport)
+			{
+				enableSecondViewport = false;
+
+				cooldown = 0.0f;
+			}
+			else
+			{
+				enableSecondViewport = true;
+
+				cooldown = 0.0f;
+			}
+		}
 	}
+	else
+		cooldown += time.SmoothDelta();
 }
 
 bool DEMO_APP::LoadObjHeader(const OBJ_VERT* data, int dataSize, const unsigned int* indicies, int indiciesSize, int vBuffer, int iBuffer)
@@ -609,23 +754,35 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	depthDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
 	depthDesc.CPUAccessFlags = 0;
 	depthDesc.MiscFlags = 0;
-
-	device->CreateTexture2D(&depthDesc, NULL, &depthBuffer);
+	HRESULT result = device->CreateTexture2D(&depthDesc, NULL, &depthBuffer);
 
 	D3D11_DEPTH_STENCIL_VIEW_DESC depthViewDesc;
 	ZeroMemory(&depthViewDesc, sizeof(depthViewDesc));
 	depthViewDesc.Format = depthDesc.Format;
 	depthViewDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DMS;
 	depthViewDesc.Texture2D.MipSlice = 0;
+	result = device->CreateDepthStencilView(depthBuffer, &depthViewDesc, &dsv);
 
-	device->CreateDepthStencilView(depthBuffer, &depthViewDesc, &dsv);
+	rtt_viewPort.Width = 500;
+	rtt_viewPort.Height = 500;
+	rtt_viewPort.MinDepth = 0.0f;
+	rtt_viewPort.MaxDepth = 1.0f;
+	rtt_viewPort.TopLeftX = 0;
+	rtt_viewPort.TopLeftY = 0;
 
-	viewport.Width = 500;
-	viewport.Height = 500;
-	viewport.MinDepth = 0.0f;
-	viewport.MaxDepth = 1.0f;
-	viewport.TopLeftX = 0;
-	viewport.TopLeftY = 0;
+	arrayOfViewports[0].Width = backBuffer_width;
+	arrayOfViewports[0].Height = backBuffer_height;
+	arrayOfViewports[0].MinDepth = 0.0f;
+	arrayOfViewports[0].MaxDepth = 1.0f;
+	arrayOfViewports[0].TopLeftX = 0;
+	arrayOfViewports[0].TopLeftY = 0;
+
+	arrayOfViewports[1].Width = backBuffer_width / 2;
+	arrayOfViewports[1].Height = backBuffer_height;
+	arrayOfViewports[1].MinDepth = 0.0f;
+	arrayOfViewports[1].MaxDepth = 1.0f;
+	arrayOfViewports[1].TopLeftX = backBuffer_width / 2;
+	arrayOfViewports[1].TopLeftY = 0;
 
 	D3D11_TEXTURE2D_DESC rttDesc;
 	ZeroMemory(&rttDesc, sizeof(rttDesc));
@@ -639,15 +796,13 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	rttDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
 	rttDesc.CPUAccessFlags = 0;
 	rttDesc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
-
-	HRESULT result = device->CreateTexture2D(&rttDesc, NULL, &rtt_texture);
+	result = device->CreateTexture2D(&rttDesc, NULL, &rtt_texture);
 
 	D3D11_RENDER_TARGET_VIEW_DESC rtt_rtvDesc;
 	ZeroMemory(&rtt_rtvDesc, sizeof(rtt_rtvDesc));
 	rtt_rtvDesc.Format = rttDesc.Format;
 	rtt_rtvDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
 	rtt_rtvDesc.Texture2D.MipSlice = 0;
-
 	result = device->CreateRenderTargetView(rtt_texture, &rtt_rtvDesc, &rtt_rtv);
 
 	D3D11_SHADER_RESOURCE_VIEW_DESC rtt_srvDesc;
@@ -656,7 +811,6 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	rtt_srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 	rtt_srvDesc.Texture2D.MostDetailedMip = 0;
 	rtt_srvDesc.Texture2D.MipLevels = 1;
-
 	result = device->CreateShaderResourceView(rtt_texture, &rtt_srvDesc, &rtt_shaderResource);
 
 	D3D11_TEXTURE2D_DESC rtt_depthDesc;
@@ -672,7 +826,6 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	rtt_depthDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
 	rtt_depthDesc.CPUAccessFlags = 0;
 	rtt_depthDesc.MiscFlags = 0;
-
 	result = device->CreateTexture2D(&rtt_depthDesc, NULL, &rtt_depthBuffer);
 
 	D3D11_DEPTH_STENCIL_VIEW_DESC rtt_depthViewDesc;
@@ -680,7 +833,6 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	rtt_depthViewDesc.Format = depthDesc.Format;
 	rtt_depthViewDesc.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2DMS;
 	rtt_depthViewDesc.Texture2D.MipSlice = 0;
-
 	result = device->CreateDepthStencilView(rtt_depthBuffer, NULL, &rtt_dsv);
 
 #if 1
@@ -732,39 +884,37 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 		5,7,4, 5,6,7
 	};
 
-	//CalculateTangent(cubeVerts, ARRAYSIZE(cubeVerts), triangleVerts, ARRAYSIZE(triangleVerts));
-
 	SKYBOX_VERTEX cubeMapVerts[] =
 	{
-		{ DirectX::XMFLOAT3(-0.25f, 0.25f, -0.25f), DirectX::XMFLOAT2(0.0f, 0.0f) },
-		{ DirectX::XMFLOAT3(0.25f, 0.25f, -0.25f), DirectX::XMFLOAT2(1.0f, 0.0f) },
-		{ DirectX::XMFLOAT3(0.25f, 0.25f, 0.25f), DirectX::XMFLOAT2(1.0f, 1.0f) },
-		{ DirectX::XMFLOAT3(-0.25f, 0.25f, 0.25f), DirectX::XMFLOAT2(0.0f, 1.0f) },
+		{ DirectX::XMFLOAT3(-0.25f, 0.25f, -0.25f)},
+		{ DirectX::XMFLOAT3(0.25f, 0.25f, -0.25f)},
+		{ DirectX::XMFLOAT3(0.25f, 0.25f, 0.25f)},
+		{ DirectX::XMFLOAT3(-0.25f, 0.25f, 0.25f)},
 
-		{ DirectX::XMFLOAT3(-0.25f, -0.25f, -0.25f), DirectX::XMFLOAT2(0.0f, 0.0f) },
-		{ DirectX::XMFLOAT3(0.25f, -0.25f, -0.25f), DirectX::XMFLOAT2(1.0f, 0.0f) },
-		{ DirectX::XMFLOAT3(0.25f, -0.25f, 0.25f), DirectX::XMFLOAT2(1.0f, 1.0f) },
-		{ DirectX::XMFLOAT3(-0.25f, -0.25f, 0.25f), DirectX::XMFLOAT2(0.0f, 1.0f) },
+		{ DirectX::XMFLOAT3(-0.25f, -0.25f, -0.25f)},
+		{ DirectX::XMFLOAT3(0.25f, -0.25f, -0.25f)},
+		{ DirectX::XMFLOAT3(0.25f, -0.25f, 0.25f)},
+		{ DirectX::XMFLOAT3(-0.25f, -0.25f, 0.25f)},
 
-		{ DirectX::XMFLOAT3(-0.25f, -0.25f, 0.25f), DirectX::XMFLOAT2(0.0f, 0.0f) },
-		{ DirectX::XMFLOAT3(-0.25f, -0.25f, -0.25f), DirectX::XMFLOAT2(1.0f, 0.0f) },
-		{ DirectX::XMFLOAT3(-0.25f, 0.25f, -0.25f), DirectX::XMFLOAT2(1.0f, 1.0f) },
-		{ DirectX::XMFLOAT3(-0.25f, 0.25f, 0.25f), DirectX::XMFLOAT2(0.0f, 1.0f) },
+		{ DirectX::XMFLOAT3(-0.25f, -0.25f, 0.25f)},
+		{ DirectX::XMFLOAT3(-0.25f, -0.25f, -0.25f)},
+		{ DirectX::XMFLOAT3(-0.25f, 0.25f, -0.25f)},
+		{ DirectX::XMFLOAT3(-0.25f, 0.25f, 0.25f)},
 
-		{ DirectX::XMFLOAT3(0.25f, -0.25f, 0.25f), DirectX::XMFLOAT2(1.0f, 0.0f) },
-		{ DirectX::XMFLOAT3(0.25f, -0.25f, -0.25f), DirectX::XMFLOAT2(0.0f, 0.0f) },
-		{ DirectX::XMFLOAT3(0.25f, 0.25f, -0.25f), DirectX::XMFLOAT2(0.0f, 1.0f) },
-		{ DirectX::XMFLOAT3(0.25f, 0.25f, 0.25f), DirectX::XMFLOAT2(1.0f, 1.0f) },
+		{ DirectX::XMFLOAT3(0.25f, -0.25f, 0.25f)},
+		{ DirectX::XMFLOAT3(0.25f, -0.25f, -0.25f)},
+		{ DirectX::XMFLOAT3(0.25f, 0.25f, -0.25f)},
+		{ DirectX::XMFLOAT3(0.25f, 0.25f, 0.25f)},
 
-		{ DirectX::XMFLOAT3(-0.25f, -0.25f, -0.25f), DirectX::XMFLOAT2(0.0f, 0.0f) },
-		{ DirectX::XMFLOAT3(0.25f, -0.25f, -0.25f), DirectX::XMFLOAT2(1.0f, 0.0f) },
-		{ DirectX::XMFLOAT3(0.25f, 0.25f, -0.25f), DirectX::XMFLOAT2(1.0f, 1.0f) },
-		{ DirectX::XMFLOAT3(-0.25f, 0.25f, -0.25f), DirectX::XMFLOAT2(0.0f, 1.0f) },
+		{ DirectX::XMFLOAT3(-0.25f, -0.25f, -0.25f)},
+		{ DirectX::XMFLOAT3(0.25f, -0.25f, -0.25f)},
+		{ DirectX::XMFLOAT3(0.25f, 0.25f, -0.25f)},
+		{ DirectX::XMFLOAT3(-0.25f, 0.25f, -0.25f)},
 
-		{ DirectX::XMFLOAT3(-0.25f, -0.25f, 0.25f), DirectX::XMFLOAT2(1.0f, 0.0f) },
-		{ DirectX::XMFLOAT3(0.25f, -0.25f, 0.25f), DirectX::XMFLOAT2(0.0f, 0.0f) },
-		{ DirectX::XMFLOAT3(0.25f, 0.25f, 0.25f), DirectX::XMFLOAT2(0.0f, 1.0f) },
-		{ DirectX::XMFLOAT3(-0.25f, 0.25f, 0.25f), DirectX::XMFLOAT2(1.0f, 1.0f) },
+		{ DirectX::XMFLOAT3(-0.25f, -0.25f, 0.25f)},
+		{ DirectX::XMFLOAT3(0.25f, -0.25f, 0.25f)},
+		{ DirectX::XMFLOAT3(0.25f, 0.25f, 0.25f)},
+		{ DirectX::XMFLOAT3(-0.25f, 0.25f, 0.25f)},
 	};
 
 	short cubeMapTriangleVerts[] = {
@@ -786,7 +936,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 	MakeVertexBuffer(&vBuffers[0], ARRAYSIZE(cubeMapVerts), cubeMapVerts);
 	MakeIndexBuffer(&iBuffers[0], ARRAYSIZE(cubeMapTriangleVerts), cubeMapTriangleVerts);
-
+	result = CreateDDSTextureFromFile(device, L"mountain_skybox.dds", nullptr, &diffuseViews[9]);
 	result = CreateDDSTextureFromFile(device, L"OutputCube.dds", nullptr, &diffuseViews[0]);
 	D3D11_SAMPLER_DESC cubeMapSampDesc;
 	ZeroMemory(&cubeMapSampDesc, sizeof(cubeMapSampDesc));
@@ -800,8 +950,6 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	result = device->CreateSamplerState(&cubeMapSampDesc, &samplerStates[0]);
 
 	int num = LoadObjFile("Barrel.obj", 5, 5);
-
-	//LoadObjHeader(_3d_planet_data, ARRAYSIZE(_3d_planet_data), _3d_planet_indicies, ARRAYSIZE(_3d_planet_indicies), 4, 4);
 
 	MakeVertexBuffer(&vBuffers[1], ARRAYSIZE(cubeVerts), cubeVerts);
 	MakeIndexBuffer(&iBuffers[1], ARRAYSIZE(triangleVerts), triangleVerts);
@@ -820,6 +968,9 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	result = CreateDDSTextureFromFile(device, L"moonbump1k.dds", nullptr, &normMaps[0]);
 	result = CreateDDSTextureFromFile(device, L"sunmap.dds", nullptr, &diffuseViews[7]);
 	
+	num = LoadObjFile("satellite.obj", 6, 6);
+	result = CreateDDSTextureFromFile(device, L"RT_2D_Satellite_Diffuse.dds", nullptr, &diffuseViews[10]);
+	result = CreateDDSTextureFromFile(device, L"RT_2d_Satellite_Normal.dds", nullptr, &normMaps[2]);
 
 	result = CreateDDSTextureFromFile(device, L"stone01.dds", nullptr, &diffuseViews[8]);
 	result = CreateDDSTextureFromFile(device, L"bump01.dds", nullptr, &normMaps[1]);
@@ -829,7 +980,6 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	result = device->CreateGeometryShader(Trivial_GS, sizeof(Trivial_GS), NULL, &gs);
 	result = device->CreateVertexShader(SkyBox_VS, sizeof(SkyBox_VS), NULL, &skyBox_vs);
 	result = device->CreatePixelShader(SkyBox_PS, sizeof(SkyBox_PS), NULL, &skyBox_ps);
-	//result = device->CreatePixelShader(RTT_PS, sizeof(RTT_PS), NULL, &rtt_ps);
 
 	D3D11_INPUT_ELEMENT_DESC vLayout[] =
 	{
@@ -842,41 +992,56 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 	D3D11_INPUT_ELEMENT_DESC skyBox_vLayout[] =
 	{
-		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 }
 	};
 
 	result = device->CreateInputLayout(vLayout, ARRAYSIZE(vLayout), Trivial_VS, sizeof(Trivial_VS), &inputLayout);
 	result = device->CreateInputLayout(skyBox_vLayout, ARRAYSIZE(skyBox_vLayout), SkyBox_VS, sizeof(SkyBox_VS), &skyBox_inputLayout);
 
+	ZeroMemory(&cBufferVSDesc, sizeof(cBufferVS));
 	cBufferVSDesc.Usage = D3D11_USAGE_DYNAMIC;
 	cBufferVSDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 	cBufferVSDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 	cBufferVSDesc.ByteWidth = sizeof(SEND_TO_VS);
-
 	result = device->CreateBuffer(&cBufferVSDesc, NULL, &cBufferVS);
 
+	ZeroMemory(&cBufferPSDesc, sizeof(cBufferPS));
 	cBufferPSDesc.Usage = D3D11_USAGE_DYNAMIC;
 	cBufferPSDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
 	cBufferPSDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
 	cBufferPSDesc.ByteWidth = sizeof(SEND_TO_PS);
-
 	result = device->CreateBuffer(&cBufferPSDesc, NULL, &cBufferPS);
+
+	ZeroMemory(&cBufferGSDesc, sizeof(cBufferGS));
+	cBufferGSDesc.Usage = D3D11_USAGE_DYNAMIC;
+	cBufferGSDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	cBufferGSDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	cBufferGSDesc.ByteWidth = sizeof(SEND_TO_GS);
+	result = device->CreateBuffer(&cBufferGSDesc, NULL, &cBufferGS);
 
 	for (int i = 0; i < NUM_OF_MATRICIES; ++i)
 	{
 		worldMatricies[i] = DirectX::XMMatrixIdentity();
 	}
-	cameraMatrix = DirectX::XMMatrixRotationX(-18.0f);
-	cameraMatrix = DirectX::XMMatrixMultiply(DirectX::XMMatrixTranslation(0, 0, -5.0f), cameraMatrix);
-	viewMatrix = DirectX::XMMatrixInverse(nullptr, cameraMatrix);
-	projectionMatrix = DirectX::XMMatrixPerspectiveFovLH(DirectX::XMConvertToRadians(fov), backBuffer_width / backBuffer_height, 0.1f, 5000.0f);
 
-	rtt_viewMatrix = DirectX::XMMatrixInverse(nullptr, DirectX::XMMatrixMultiply(DirectX::XMMatrixTranslation(0, 0, -5.0f), DirectX::XMMatrixRotationX(-18.0f)));
+	DirectX::XMVECTOR cameraPosition = { 0.0f, -2.0f, 5.0f };
+	DirectX::XMVECTOR cameraLook = { 0.0f, 2.5f, 15.0f };
+	DirectX::XMVECTOR cameraUp = { 0.0f, 1.0f, 0.0f };
+
+	cameraMatrix = DirectX::XMMatrixLookAtLH(cameraPosition, cameraLook, cameraUp);
+
+	//second_cameraMatrix = cameraMatrix;
+	second_cameraMatrix = DirectX::XMMatrixLookAtLH(cameraPosition, cameraLook, cameraUp);
+
+	projectionMatrix = DirectX::XMMatrixPerspectiveFovLH(DirectX::XMConvertToRadians(fov), (backBuffer_width) / (backBuffer_height), 0.1f, 5000.0f);
+
+	rtt_viewMatrix = DirectX::XMMatrixInverse(nullptr, cameraMatrix);
 	rtt_projectionMatrix = DirectX::XMMatrixPerspectiveFovLH(DirectX::XMConvertToRadians(90), 100 / 100, 0.1f, 100.0f);
 	
 	worldMatricies[3] = DirectX::XMMatrixScaling(100.0f, 100.0f, 100.0f);
 	worldMatricies[3].r[3] = cameraMatrix.r[3];
+	worldMatricies[11] = DirectX::XMMatrixScaling(100.0f, 100.0f, 100.0f);
+	worldMatricies[11].r[3] = second_cameraMatrix.r[3];
 }
 
 //************************************************************
@@ -887,11 +1052,11 @@ bool DEMO_APP::Run()
 {
 	time.Signal();
 
-	CheckCameraInput();
+	CheckKeyboardInput();
 
 	context->OMSetRenderTargets(1, &rtv, dsv);
 
-	context->RSSetViewports(1, &viewport);
+	context->RSSetViewports(1, &arrayOfViewports[0]);
 
 	FLOAT arr[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 
@@ -901,6 +1066,7 @@ bool DEMO_APP::Run()
 	// DRAW THE SKYBOX
 	//
 	toVSShader.worldMatrix = worldMatricies[3];
+	viewMatrix = DirectX::XMMatrixInverse(nullptr, cameraMatrix);
 	toVSShader.viewMatrix = viewMatrix;
 	toVSShader.projectionMatrix = projectionMatrix;
 
@@ -909,7 +1075,7 @@ bool DEMO_APP::Run()
 	memcpy(ms.pData, &toVSShader, sizeof(toVSShader));
 	context->Unmap(cBufferVS, NULL);
 
-	context->VSSetConstantBuffers(2, 1, &cBufferVS);
+	context->VSSetConstantBuffers(0, 1, &cBufferVS);
 
 	UINT stride = sizeof(SKYBOX_VERTEX);
 	UINT offset = 0;
@@ -921,7 +1087,7 @@ bool DEMO_APP::Run()
 	context->GSSetShader(nullptr, 0, 0);
 
 	context->PSSetShaderResources(1, 1, &diffuseViews[0]);
-	context->PSSetSamplers(1, 1, &samplerStates[0]);
+	context->PSSetSamplers(0, 1, &samplerStates[0]);
 
 	context->IASetInputLayout(skyBox_inputLayout);
 
@@ -930,6 +1096,25 @@ bool DEMO_APP::Run()
 	context->DrawIndexed(36, 0, 0);
 
 	context->ClearDepthStencilView(dsv, D3D11_CLEAR_DEPTH, 1.0f, 1.0f);
+
+	if (enableSecondViewport)
+	{
+		context->RSSetViewports(1, &arrayOfViewports[1]);
+
+		toVSShader.worldMatrix = worldMatricies[11];
+		viewMatrix = DirectX::XMMatrixInverse(nullptr, second_cameraMatrix);
+		toVSShader.viewMatrix = viewMatrix;
+
+		context->Map(cBufferVS, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
+		memcpy(ms.pData, &toVSShader, sizeof(toVSShader));
+		context->Unmap(cBufferVS, NULL);
+
+		//context->PSSetShaderResources(1, 1, &diffuseViews[9]);
+
+		context->DrawIndexed(36, 0, 0);
+
+		context->ClearDepthStencilView(dsv, D3D11_CLEAR_DEPTH, 1.0f, 1.0f);
+	}
 	//
 	// DRAW THE FLAT CUBE RTT
 	//
@@ -953,7 +1138,7 @@ bool DEMO_APP::Run()
 	toPSShader.lights[0].lightType = 0;
 	toPSShader.lights[0].enabled = 1;
 	toPSShader.lights[1].lightDirection = DirectX::XMFLOAT4(0.3f, 0.3f, 0.3f, 1.0f);
-	toPSShader.lights[1].lightPosition = DirectX::XMFLOAT4(1.5f, 0.5f, cos(timer), 1.0f);
+	toPSShader.lights[1].lightPosition = DirectX::XMFLOAT4(cos(timer) - 1.0f, 1.25f, -0.25f, 1.0f);
 	toPSShader.lights[1].lightColor = DirectX::XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f);
 	toPSShader.lights[1].lightType = 1;
 	toPSShader.lights[1].enabled = 1;
@@ -967,7 +1152,30 @@ bool DEMO_APP::Run()
 	toPSShader.hasNormMap = 0;
 	toPSShader.hasSecondTexture = 0;
 	toPSShader.isRTT = 0;
-	//toPSShader.emissiveValue = DirectX::XMFLOAT4(1.0f, 0.1f, 0.1f, 0.0f);
+
+	if (enableSecondViewport)
+	{
+		if (arrayOfViewports[0].Width != backBuffer_width / 2)
+		{
+			arrayOfViewports[0].Width = backBuffer_width / 2;
+		
+			projectionMatrix = DirectX::XMMatrixPerspectiveFovLH(DirectX::XMConvertToRadians(fov), (backBuffer_width / 2) / (backBuffer_height), 0.1f, 5000.0f);
+		}
+		context->RSSetViewports(2, &arrayOfViewports[0]);
+	}
+	else
+	{
+		if (arrayOfViewports[0].Width != backBuffer_width)
+		{
+			arrayOfViewports[0].Width = backBuffer_width;
+		
+			projectionMatrix = DirectX::XMMatrixPerspectiveFovLH(DirectX::XMConvertToRadians(fov), (backBuffer_width) / (backBuffer_height), 0.1f, 5000.0f);		
+		}
+		context->RSSetViewports(1, &arrayOfViewports[0]);
+	}
+	
+	toGSShader.second_viewMatrix = DirectX::XMMatrixInverse(nullptr, second_cameraMatrix);
+	toGSShader.isBarrels = 0;
 
 	timer += time.SmoothDelta();
 
@@ -979,8 +1187,14 @@ bool DEMO_APP::Run()
 	memcpy(ms.pData, &toPSShader, sizeof(toPSShader));
 	context->Unmap(cBufferPS, NULL);
 
-	context->VSSetConstantBuffers(0, 1, &cBufferVS);
+	context->Map(cBufferGS, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
+	memcpy(ms.pData, &toGSShader, sizeof(toGSShader));
+	context->Unmap(cBufferGS, NULL);
+
+	//context->VSSetConstantBuffers(0, 1, &cBufferVS);
 	context->PSSetConstantBuffers(1, 1, &cBufferPS);
+	context->GSSetConstantBuffers(3, 1, &cBufferVS);
+	context->GSSetConstantBuffers(4, 1, &cBufferGS);
 
 	stride = sizeof(SIMPLE_VERTEX);
 	context->IASetVertexBuffers(0, 1, &vBuffers[1], &stride, &offset);
@@ -988,15 +1202,16 @@ bool DEMO_APP::Run()
 
 	context->VSSetShader(vs, 0, 0);
 	context->PSSetShader(ps, 0, 0);
+	context->GSSetShader(gs, 0, 0);
 
 	context->PSSetShaderResources(0, 1, &rtt_shaderResource);
-	context->PSSetSamplers(0, 1, &samplerStates[0]);
+	//context->PSSetSamplers(0, 1, &samplerStates[0]);
 
 	context->IASetInputLayout(inputLayout);
 
 	context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	context->DrawIndexed(36, 0, 0);
+	context->DrawIndexedInstanced(36, 2, 0, 0, 0);
 
 	context->PSSetShaderResources(0, 1, pSRV);
 	//
@@ -1027,7 +1242,7 @@ bool DEMO_APP::Run()
 
 	context->PSSetShaderResources(0, 1, &diffuseViews[1]);
 
-	context->DrawIndexed(36, 0, 0);
+	context->DrawIndexedInstanced(36, 2, 0, 0, 0);
 	//
 	// DRAW THE BARRELS
 	//
@@ -1039,28 +1254,6 @@ bool DEMO_APP::Run()
 
 	context->PSSetShaderResources(0, 1, &diffuseViews[2]);
 
-	//worldMatricies[2] = DirectX::XMMatrixTranslation(0.0f, -2.5f, 2.0f);
-	//worldMatricies[2] = DirectX::XMMatrixMultiply(DirectX::XMMatrixScaling(0.05f, 0.05f, 0.05f), worldMatricies[2]);
-	//toVSShader.worldMatrix = worldMatricies[2];
-	//
-	//toPSShader.hasNormMap = 0;
-	//toPSShader.hasSecondTexture = 0;
-	//toPSShader.isRTT = 0;
-	//
-	//context->Map(cBufferVS, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
-	//memcpy(ms.pData, &toVSShader, sizeof(toVSShader));
-	//context->Unmap(cBufferVS, NULL);
-	//
-	//context->Map(cBufferPS, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
-	//memcpy(ms.pData, &toPSShader, sizeof(toPSShader));
-	//context->Unmap(cBufferPS, NULL);
-	//
-	//context->GSSetConstantBuffers(3, 1, &cBufferVS);
-	//
-	//context->DrawIndexedInstanced(ARRAYSIZE(Barrel_indicies), 10, 0, 0, 0);
-	//
-	// MORE BARRELS
-	//
 	worldMatricies[9] = DirectX::XMMatrixTranslation(2.0f, 0.25f, 2.0f);
 	worldMatricies[9] = DirectX::XMMatrixMultiply(DirectX::XMMatrixScaling(0.05f, 0.05f, 0.05f), worldMatricies[9]);
 	toVSShader.worldMatrix = worldMatricies[9];
@@ -1074,6 +1267,8 @@ bool DEMO_APP::Run()
 	toPSShader.hasSecondTexture = 0;
 	toPSShader.isRTT = 0;
 
+	toGSShader.isBarrels = 1;
+
 	context->Map(cBufferVS, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
 	memcpy(ms.pData, &toVSShader, sizeof(toVSShader));
 	context->Unmap(cBufferVS, NULL);
@@ -1082,20 +1277,19 @@ bool DEMO_APP::Run()
 	memcpy(ms.pData, &toPSShader, sizeof(toPSShader));
 	context->Unmap(cBufferPS, NULL);
 
+	context->Map(cBufferGS, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
+	memcpy(ms.pData, &toGSShader, sizeof(toGSShader));
+	context->Unmap(cBufferGS, NULL);
+
 	context->IASetVertexBuffers(0, 1, &vBuffers[5], &stride, &offset);
 	context->IASetIndexBuffer(iBuffers[5], DXGI_FORMAT_R16_UINT, offset);
 
-	//context->GSSetShader(nullptr, 0, 0);
-	context->GSSetConstantBuffers(3, 1, &cBufferVS);
-
-	context->DrawIndexedInstanced(612, 10, 0, 0, 0);
+	context->DrawIndexedInstanced(612, 11, 0, 0, 0);
 	//
 	// DRAW THE SUN
 	//
 	context->IASetVertexBuffers(0, 1, &vBuffers[4], &stride, &offset);
 	context->IASetIndexBuffer(iBuffers[4], DXGI_FORMAT_R16_UINT, offset);
-
-	context->GSSetShader(nullptr, 0, 0);
 
 	context->PSSetShaderResources(0, 1, &diffuseViews[7]);
 
@@ -1113,6 +1307,8 @@ bool DEMO_APP::Run()
 	toPSShader.hasSecondTexture = 0;
 	toPSShader.isRTT = 0;
 
+	toGSShader.isBarrels = 0;
+
 	context->Map(cBufferVS, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
 	memcpy(ms.pData, &toVSShader, sizeof(toVSShader));
 	context->Unmap(cBufferVS, NULL);
@@ -1121,7 +1317,11 @@ bool DEMO_APP::Run()
 	memcpy(ms.pData, &toPSShader, sizeof(toPSShader));
 	context->Unmap(cBufferPS, NULL);
 
-	context->DrawIndexed(7140, 0, 0);
+	context->Map(cBufferGS, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
+	memcpy(ms.pData, &toGSShader, sizeof(toGSShader));
+	context->Unmap(cBufferGS, NULL);
+
+	context->DrawIndexedInstanced(7140, 2, 0, 0, 0);
 	//
 	// DRAW THE EARTH
 	//
@@ -1151,7 +1351,7 @@ bool DEMO_APP::Run()
 	memcpy(ms.pData, &toPSShader, sizeof(toPSShader));
 	context->Unmap(cBufferPS, NULL);
 
-	context->DrawIndexed(7140, 0, 0);
+	context->DrawIndexedInstanced(7140, 2, 0, 0, 0);
 	//
 	// DRAW THE MOON
 	//
@@ -1163,7 +1363,7 @@ bool DEMO_APP::Run()
 	worldMatricies[7] = DirectX::XMMatrixTranslation(worldMatricies[6].r[3].m128_f32[0] + 0.0f, worldMatricies[6].r[3].m128_f32[1] + 0.0f, worldMatricies[6].r[3].m128_f32[2] + 0.0f);
 	worldMatricies[7] = DirectX::XMMatrixMultiply(DirectX::XMMatrixMultiply(DirectX::XMMatrixTranslation(-100.0f, 0.0f, 0.0f), DirectX::XMMatrixRotationY(timer * 0.7f)), worldMatricies[7]);
 	worldMatricies[7] = DirectX::XMMatrixMultiply(DirectX::XMMatrixRotationY(timer * 0.65f), worldMatricies[7]);
-	worldMatricies[7] = DirectX::XMMatrixMultiply(DirectX::XMMatrixScaling(0.05f, 0.05f, 0.05f), worldMatricies[7]);
+	worldMatricies[7] = DirectX::XMMatrixMultiply(DirectX::XMMatrixScaling(0.03f, 0.03f, 0.03f), worldMatricies[7]);
 	toVSShader.worldMatrix = worldMatricies[7];
 
 	toPSShader.materialProperties.emissive = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
@@ -1183,7 +1383,39 @@ bool DEMO_APP::Run()
 	memcpy(ms.pData, &toPSShader, sizeof(toPSShader));
 	context->Unmap(cBufferPS, NULL);
 
-	context->DrawIndexed(7140, 0, 0);
+	context->DrawIndexedInstanced(7140, 2, 0, 0, 0);
+	//
+	// DRAW SATILLITE
+	//
+	context->IASetVertexBuffers(0, 1, &vBuffers[6], &stride, &offset);
+	context->IASetIndexBuffer(iBuffers[6], DXGI_FORMAT_R16_UINT, offset);
+	
+	context->PSSetShaderResources(0, 1, &diffuseViews[10]);
+	context->PSSetShaderResources(3, 1, &normMaps[2]);
+	
+	worldMatricies[12] = DirectX::XMMatrixTranslation(5.0f, 2.0f, 0.0f);
+	worldMatricies[12] = DirectX::XMMatrixMultiply(DirectX::XMMatrixRotationX(DirectX::XMConvertToRadians(-195)), DirectX::XMMatrixMultiply(DirectX::XMMatrixRotationY(timer * 0.5f), worldMatricies[12]));
+	worldMatricies[12] = DirectX::XMMatrixMultiply(DirectX::XMMatrixScaling(0.1f, 0.1f, 0.1f), worldMatricies[12]);
+	toVSShader.worldMatrix = worldMatricies[12];
+	
+	toPSShader.materialProperties.emissive = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+	toPSShader.materialProperties.ambient = DirectX::XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
+	toPSShader.materialProperties.diffuse = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	toPSShader.materialProperties.specular = DirectX::XMFLOAT4(0.3f, 0.3f, 0.3f, 1.0f);
+	toPSShader.materialProperties.specularPower = 10;
+	toPSShader.hasNormMap = 1;
+	toPSShader.hasSecondTexture = 0;
+	toPSShader.isRTT = 0;
+	
+	context->Map(cBufferVS, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
+	memcpy(ms.pData, &toVSShader, sizeof(toVSShader));
+	context->Unmap(cBufferVS, NULL);
+	
+	context->Map(cBufferPS, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
+	memcpy(ms.pData, &toPSShader, sizeof(toPSShader));
+	context->Unmap(cBufferPS, NULL);
+	
+	context->DrawIndexedInstanced(7236, 2, 0, 0, 0);
 	//
 	// DRAW EXAMPLE CUBE 1
 	//
@@ -1199,8 +1431,8 @@ bool DEMO_APP::Run()
 	toPSShader.materialProperties.emissive = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
 	toPSShader.materialProperties.ambient = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	toPSShader.materialProperties.diffuse = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-	toPSShader.materialProperties.specular = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
-	toPSShader.materialProperties.specularPower = 45;
+	toPSShader.materialProperties.specular = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+	toPSShader.materialProperties.specularPower = 32;
 	toPSShader.hasNormMap = 1;
 	toPSShader.hasSecondTexture = 0;
 	toPSShader.isRTT = 0;
@@ -1213,7 +1445,7 @@ bool DEMO_APP::Run()
 	memcpy(ms.pData, &toPSShader, sizeof(toPSShader));
 	context->Unmap(cBufferPS, NULL);
 
-	context->DrawIndexed(36, 0, 0);
+	context->DrawIndexedInstanced(36, 2, 0, 0, 0);
 	//
 	// DRAW EXAMPLE CUBE 2
 	//
@@ -1225,8 +1457,8 @@ bool DEMO_APP::Run()
 	toPSShader.materialProperties.emissive = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
 	toPSShader.materialProperties.ambient = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	toPSShader.materialProperties.diffuse = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-	toPSShader.materialProperties.specular = DirectX::XMFLOAT4(0.6f, 0.6f, 0.6f, 1.0f);
-	toPSShader.materialProperties.specularPower = 45;
+	toPSShader.materialProperties.specular = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	toPSShader.materialProperties.specularPower = 64;
 	toPSShader.hasNormMap = 1;
 	toPSShader.hasSecondTexture = 0;
 	toPSShader.isRTT = 0;
@@ -1239,11 +1471,14 @@ bool DEMO_APP::Run()
 	memcpy(ms.pData, &toPSShader, sizeof(toPSShader));
 	context->Unmap(cBufferPS, NULL);
 
-	context->DrawIndexed(36, 0, 0);
+	context->DrawIndexedInstanced(36, 2, 0, 0, 0);
 	//
 	// DRAW STONEHENGE ONTO A TEXTURE TO BE RENDERED
 	//
 	context->OMSetRenderTargets(1, &rtt_rtv, rtt_dsv);
+
+	context->RSSetViewports(1, &rtt_viewPort);
+
 	arr[0] = 1.0f;
 	arr[1] = 1.0f;
 	arr[2] = 1.0f;
@@ -1292,7 +1527,7 @@ bool DEMO_APP::ShutDown()
 {	
 	swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&backBuffer);
 	backBuffer->Release();
-	device->Release();
+	//device->Release();
 	swapChain->Release();
 	depthBuffer->Release();
 	rtv->Release();
@@ -1300,6 +1535,7 @@ bool DEMO_APP::ShutDown()
 	context->Release();
 	cBufferVS->Release();
 	cBufferPS->Release();
+	cBufferGS->Release();
 	ps->Release();
 	vs->Release();
 	gs->Release();
@@ -1329,14 +1565,14 @@ bool DEMO_APP::ShutDown()
 	{
 		samplerStates[i]->Release();
 	}
-	//for (unsigned int i = 0; i < NUM_OF_NORMMAPS; ++i)
-	//{
-	//	normMaps[i]->Release();
-	//}
+	for (unsigned int i = 0; i < NUM_OF_NORMMAPS; ++i)
+	{
+		normMaps[i]->Release();
+	}
 
-	ID3D11Debug* debug;
-	device->QueryInterface(IID_PPV_ARGS(&debug));
-	debug->ReportLiveDeviceObjects(D3D11_RLDO_DETAIL);
+	//ID3D11Debug* debug;
+	//device->QueryInterface(IID_PPV_ARGS(&debug));
+	//debug->ReportLiveDeviceObjects(D3D11_RLDO_DETAIL);
 
 	UnregisterClass(L"DirectXApplication", application);
 	return true;
@@ -1378,8 +1614,6 @@ LRESULT CALLBACK DEMO_APP::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
 	{
 		if (myApp)
 		{
-			//myApp->context->OMSetRenderTargets(0, 0, 0);
-
 			myApp->rtv->Release();
 
 			HRESULT hr;
@@ -1399,16 +1633,35 @@ LRESULT CALLBACK DEMO_APP::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
 			myApp->backBuffer_width = tempSwapDesc.BufferDesc.Width;
 			myApp->backBuffer_height = tempSwapDesc.BufferDesc.Height;
 
-			myApp->viewport.Width = myApp->backBuffer_width;
-			myApp->viewport.Height = myApp->backBuffer_height;
-			myApp->viewport.MinDepth = 0.0f;
-			myApp->viewport.MaxDepth = 1.0f;
-			myApp->viewport.TopLeftX = 0;
-			myApp->viewport.TopLeftY = 0;
+			if (myApp->enableSecondViewport)
+			{
+				myApp->arrayOfViewports[0].Width = myApp->backBuffer_width / 2;
+				myApp->arrayOfViewports[0].Height = myApp->backBuffer_height;
+				myApp->arrayOfViewports[0].MinDepth = 0.0f;
+				myApp->arrayOfViewports[0].MaxDepth = 1.0f;
+				myApp->arrayOfViewports[0].TopLeftX = 0;
+				myApp->arrayOfViewports[0].TopLeftY = 0;
 
-			myApp->context->RSSetViewports(1, &myApp->viewport);
+				myApp->projectionMatrix = DirectX::XMMatrixPerspectiveFovLH(DirectX::XMConvertToRadians(myApp->fov), (myApp->backBuffer_width / 2) / (myApp->backBuffer_height), 0.1f, 5000.0f);
+			}
+			else
+			{
+				myApp->arrayOfViewports[0].Width = myApp->backBuffer_width;
+				myApp->arrayOfViewports[0].Height = myApp->backBuffer_height;
+				myApp->arrayOfViewports[0].MinDepth = 0.0f;
+				myApp->arrayOfViewports[0].MaxDepth = 1.0f;
+				myApp->arrayOfViewports[0].TopLeftX = 0;
+				myApp->arrayOfViewports[0].TopLeftY = 0;
 
-			myApp->projectionMatrix = DirectX::XMMatrixPerspectiveFovLH(DirectX::XMConvertToRadians(myApp->fov), myApp->backBuffer_width / myApp->backBuffer_height, 0.1f, 5000.0f);
+				myApp->projectionMatrix = DirectX::XMMatrixPerspectiveFovLH(DirectX::XMConvertToRadians(myApp->fov), (myApp->backBuffer_width) / (myApp->backBuffer_height), 0.1f, 5000.0f);
+			}
+
+			myApp->arrayOfViewports[1].Width = myApp->backBuffer_width / 2;
+			myApp->arrayOfViewports[1].Height = myApp->backBuffer_height;
+			myApp->arrayOfViewports[1].MinDepth = 0.0f;
+			myApp->arrayOfViewports[1].MaxDepth = 1.0f;
+			myApp->arrayOfViewports[1].TopLeftX = myApp->backBuffer_width / 2;
+			myApp->arrayOfViewports[1].TopLeftY = 0;
 
 			D3D11_TEXTURE2D_DESC depthDesc;
 			ZeroMemory(&depthDesc, sizeof(depthDesc));
@@ -1461,15 +1714,15 @@ LRESULT CALLBACK DEMO_APP::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
 			int y = myApp->tempPointDown.x - pt.x;
 
 			DirectX::XMVECTOR tempVector = myApp->cameraMatrix.r[3];
-
+			
 			myApp->cameraMatrix.r[3] = DirectX::XMLoadFloat4(&DirectX::XMFLOAT4(0, 0, 0, 1));
 
 			myApp->cameraMatrix = DirectX::XMMatrixMultiply(DirectX::XMMatrixRotationX(x * -0.005f), myApp->cameraMatrix);
 			myApp->cameraMatrix = DirectX::XMMatrixMultiply(myApp->cameraMatrix, DirectX::XMMatrixRotationY(y * -0.005f));
 
-
 			myApp->cameraMatrix.r[3] = tempVector;
 		}
+
 		myApp->tempPointDown = pt;
 	}
 					break;
@@ -1480,9 +1733,18 @@ LRESULT CALLBACK DEMO_APP::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARA
 					break;
 	case (WM_MOUSEWHEEL):
 	{
-		myApp->fov += -(GET_WHEEL_DELTA_WPARAM(wParam) / 120);
+		if (myApp->fov >= 45 && myApp->fov <= 120)
+			myApp->fov += -(GET_WHEEL_DELTA_WPARAM(wParam) / 120);
 
-		myApp->projectionMatrix = DirectX::XMMatrixPerspectiveFovLH(DirectX::XMConvertToRadians(myApp->fov), myApp->backBuffer_width / myApp->backBuffer_height, 0.1f, 5000.0f);
+		if (myApp->fov < 45)
+			myApp->fov = 45;
+		else if (myApp->fov > 120)
+			myApp->fov = 120;
+
+		if (myApp->enableSecondViewport)
+			myApp->projectionMatrix = DirectX::XMMatrixPerspectiveFovLH(DirectX::XMConvertToRadians(myApp->fov), (myApp->backBuffer_width / 2) / (myApp->backBuffer_height), 0.1f, 5000.0f);
+		else
+			myApp->projectionMatrix = DirectX::XMMatrixPerspectiveFovLH(DirectX::XMConvertToRadians(myApp->fov), (myApp->backBuffer_width) / (myApp->backBuffer_height), 0.1f, 5000.0f);
 	}
 					break;
 	}

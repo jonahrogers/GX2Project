@@ -6,7 +6,7 @@ struct OUTPUT_VERTEX_SKYBOX
 
 textureCUBE cubeTexture : register(t1);
 
-SamplerState cubeFilter : register(s1);
+SamplerState cubeFilter : register(s0);
 
 
 float4 main(OUTPUT_VERTEX_SKYBOX vertex) : SV_TARGET

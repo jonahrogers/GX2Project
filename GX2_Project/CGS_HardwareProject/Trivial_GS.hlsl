@@ -20,6 +20,8 @@ struct OUTPUT_GEOMETRY
 	float4 worldPos : POSITION;
 
 	float3 tangent : TANGENT;
+
+	uint viewPort : SV_VIEWPORTARRAYINDEX;
 };
 
 cbuffer THIS_IS_VRAM : register(b3)
@@ -27,6 +29,15 @@ cbuffer THIS_IS_VRAM : register(b3)
 	float4x4 worldMatrix;
 	float4x4 viewMatrix;
 	float4x4 projectionMatrix;
+}
+
+cbuffer SECOND_VIEWMATRIX : register(b4)
+{
+	float4x4 second_viewMatrix;
+
+	float isBarrels;
+
+	float3 padding;
 }
 
 [maxvertexcount(3)]
@@ -42,19 +53,46 @@ void main(triangle OUTPUT_VERTEX input[3], inout TriangleStream<OUTPUT_GEOMETRY>
 		output.worldPos = input[i].worldPos;
 		output.tangent = input[i].tangent;
 
-		if (input[i].instanceId % 2 == 0)
+		if (input[i].instanceId == 0)
 		{
-			output.worldPos.z -= input[i].instanceId / 2;
+			output.projectedCoordinate = mul(output.worldPos, viewMatrix);
+			output.projectedCoordinate = mul(output.projectedCoordinate, projectionMatrix);
+
+			output.viewPort = 0;
 		}
-		else if (input[i].instanceId % 2 == 1)
+		else if (input[i].instanceId == 1)
 		{
-			output.worldPos.z -= (input[i].instanceId - 1) / 2;
+			output.projectedCoordinate = mul(output.worldPos, second_viewMatrix);
+			output.projectedCoordinate = mul(output.projectedCoordinate, projectionMatrix);
 
-			output.worldPos.x -= 1;
+			output.viewPort = 1;
 		}
+		else
+		{
+			if (isBarrels)
+			{
+				if ((input[i].instanceId - 1) % 2 == 0)
+				{
+					output.worldPos.z -= (input[i].instanceId - 1) / 2;
 
-		output.projectedCoordinate = mul(output.worldPos, viewMatrix);
-		output.projectedCoordinate = mul(output.projectedCoordinate, projectionMatrix);
+					output.projectedCoordinate = mul(output.worldPos, viewMatrix);
+					output.projectedCoordinate = mul(output.projectedCoordinate, projectionMatrix);
+
+					output.viewPort = 0;
+				}
+				else if ((input[i].instanceId - 1) % 2 == 1)
+				{
+					output.worldPos.z -= ((input[i].instanceId - 1) - 1) / 2;
+
+					output.worldPos.x -= 1;
+
+					output.projectedCoordinate = mul(output.worldPos, second_viewMatrix);
+					output.projectedCoordinate = mul(output.projectedCoordinate, projectionMatrix);
+
+					output.viewPort = 1;
+				}
+			}
+		}
 
 		OutputStream.Append(output);
 	}
