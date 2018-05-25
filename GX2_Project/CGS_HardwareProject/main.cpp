@@ -167,7 +167,9 @@ class DEMO_APP
 	{
 		DirectX::XMMATRIX second_viewMatrix;
 
-		float isBarrels;
+		int isBarrels;
+
+		int splitScreenEnabled;
 
 		DirectX::XMFLOAT3 padding;
 	};
@@ -712,7 +714,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 	RECT window_size = { 0, 0, backBuffer_width, backBuffer_height };
 	AdjustWindowRect(&window_size, WS_OVERLAPPEDWINDOW, false);
 
-	window = CreateWindow(L"DirectXApplication", L"CGS Hardware Project", WS_OVERLAPPEDWINDOW /*& ~(WS_THICKFRAME | WS_MAXIMIZEBOX)*/,
+	window = CreateWindow(L"DirectXApplication", L"CGS Hardware Project", WS_OVERLAPPEDWINDOW,
 		CW_USEDEFAULT, CW_USEDEFAULT, window_size.right - window_size.left, window_size.bottom - window_size.top,
 		NULL, NULL, application, this);
 
@@ -1030,8 +1032,7 @@ DEMO_APP::DEMO_APP(HINSTANCE hinst, WNDPROC proc)
 
 	cameraMatrix = DirectX::XMMatrixLookAtLH(cameraPosition, cameraLook, cameraUp);
 
-	//second_cameraMatrix = cameraMatrix;
-	second_cameraMatrix = DirectX::XMMatrixLookAtLH(cameraPosition, cameraLook, cameraUp);
+	second_cameraMatrix = cameraMatrix;
 
 	projectionMatrix = DirectX::XMMatrixPerspectiveFovLH(DirectX::XMConvertToRadians(fov), (backBuffer_width) / (backBuffer_height), 0.1f, 5000.0f);
 
@@ -1105,15 +1106,27 @@ bool DEMO_APP::Run()
 		viewMatrix = DirectX::XMMatrixInverse(nullptr, second_cameraMatrix);
 		toVSShader.viewMatrix = viewMatrix;
 
+		toGSShader.splitScreenEnabled = 1;
+
 		context->Map(cBufferVS, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
 		memcpy(ms.pData, &toVSShader, sizeof(toVSShader));
 		context->Unmap(cBufferVS, NULL);
 
-		//context->PSSetShaderResources(1, 1, &diffuseViews[9]);
+		context->Map(cBufferGS, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
+		memcpy(ms.pData, &toGSShader, sizeof(toGSShader));
+		context->Unmap(cBufferGS, NULL);
 
 		context->DrawIndexed(36, 0, 0);
 
 		context->ClearDepthStencilView(dsv, D3D11_CLEAR_DEPTH, 1.0f, 1.0f);
+	}
+	else
+	{
+		toGSShader.splitScreenEnabled = 0;
+
+		context->Map(cBufferGS, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
+		memcpy(ms.pData, &toGSShader, sizeof(toGSShader));
+		context->Unmap(cBufferGS, NULL);
 	}
 	//
 	// DRAW THE FLAT CUBE RTT
@@ -1138,7 +1151,7 @@ bool DEMO_APP::Run()
 	toPSShader.lights[0].lightType = 0;
 	toPSShader.lights[0].enabled = 1;
 	toPSShader.lights[1].lightDirection = DirectX::XMFLOAT4(0.3f, 0.3f, 0.3f, 1.0f);
-	toPSShader.lights[1].lightPosition = DirectX::XMFLOAT4(cos(timer) - 1.0f, 1.25f, -0.25f, 1.0f);
+	toPSShader.lights[1].lightPosition = DirectX::XMFLOAT4(cos(timer) - 1.0f, 0.25f, -0.25f, 1.0f);
 	toPSShader.lights[1].lightColor = DirectX::XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f);
 	toPSShader.lights[1].lightType = 1;
 	toPSShader.lights[1].enabled = 1;
@@ -1191,7 +1204,6 @@ bool DEMO_APP::Run()
 	memcpy(ms.pData, &toGSShader, sizeof(toGSShader));
 	context->Unmap(cBufferGS, NULL);
 
-	//context->VSSetConstantBuffers(0, 1, &cBufferVS);
 	context->PSSetConstantBuffers(1, 1, &cBufferPS);
 	context->GSSetConstantBuffers(3, 1, &cBufferVS);
 	context->GSSetConstantBuffers(4, 1, &cBufferGS);
@@ -1205,13 +1217,12 @@ bool DEMO_APP::Run()
 	context->GSSetShader(gs, 0, 0);
 
 	context->PSSetShaderResources(0, 1, &rtt_shaderResource);
-	//context->PSSetSamplers(0, 1, &samplerStates[0]);
 
 	context->IASetInputLayout(inputLayout);
 
 	context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-	context->DrawIndexedInstanced(36, 2, 0, 0, 0);
+	context->DrawIndexed(36, 0, 0);
 
 	context->PSSetShaderResources(0, 1, pSRV);
 	//
@@ -1221,7 +1232,7 @@ bool DEMO_APP::Run()
 	worldMatricies[8] = DirectX::XMMatrixMultiply(DirectX::XMMatrixScaling(10.0f, 1.0f, 10.0f), worldMatricies[8]);
 	toVSShader.worldMatrix = worldMatricies[8];
 
-	toPSShader.materialProperties.emissive = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+	toPSShader.materialProperties.emissive = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
 	toPSShader.materialProperties.ambient = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	toPSShader.materialProperties.diffuse = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	toPSShader.materialProperties.specular = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
@@ -1242,7 +1253,7 @@ bool DEMO_APP::Run()
 
 	context->PSSetShaderResources(0, 1, &diffuseViews[1]);
 
-	context->DrawIndexedInstanced(36, 2, 0, 0, 0);
+	context->DrawIndexed(36, 0, 0);
 	//
 	// DRAW THE BARRELS
 	//
@@ -1258,7 +1269,7 @@ bool DEMO_APP::Run()
 	worldMatricies[9] = DirectX::XMMatrixMultiply(DirectX::XMMatrixScaling(0.05f, 0.05f, 0.05f), worldMatricies[9]);
 	toVSShader.worldMatrix = worldMatricies[9];
 
-	toPSShader.materialProperties.emissive = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+	toPSShader.materialProperties.emissive = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
 	toPSShader.materialProperties.ambient = DirectX::XMFLOAT4(0.19125f, 0.0735f, 0.0225f, 1.0f);
 	toPSShader.materialProperties.diffuse = DirectX::XMFLOAT4(0.7038f, 0.27048f, 0.0828f, 1.0f);
 	toPSShader.materialProperties.specular = DirectX::XMFLOAT4(0.256777f, 0.137622f, 0.086014f, 1.0f);
@@ -1284,7 +1295,7 @@ bool DEMO_APP::Run()
 	context->IASetVertexBuffers(0, 1, &vBuffers[5], &stride, &offset);
 	context->IASetIndexBuffer(iBuffers[5], DXGI_FORMAT_R16_UINT, offset);
 
-	context->DrawIndexedInstanced(612, 11, 0, 0, 0);
+	context->DrawIndexed(612, 0, 0);
 	//
 	// DRAW THE SUN
 	//
@@ -1293,12 +1304,12 @@ bool DEMO_APP::Run()
 
 	context->PSSetShaderResources(0, 1, &diffuseViews[7]);
 
-	worldMatricies[5] = DirectX::XMMatrixTranslation(0.0f, 0.0f, 400.0f);
+	worldMatricies[5] = DirectX::XMMatrixTranslation(0.0f, 0.0f, 150.0f);
 	worldMatricies[5] = DirectX::XMMatrixMultiply(DirectX::XMMatrixRotationY(timer * 0.3f), worldMatricies[5]);
-	worldMatricies[5] = DirectX::XMMatrixMultiply(DirectX::XMMatrixScaling(0.3f, 0.3f, 0.3f), worldMatricies[5]);
+	worldMatricies[5] = DirectX::XMMatrixMultiply(DirectX::XMMatrixScaling(0.1f, 0.1f, 0.1f), worldMatricies[5]);
 	toVSShader.worldMatrix = worldMatricies[5];
 
-	toPSShader.materialProperties.emissive = DirectX::XMFLOAT4(0.8f, 0.8f, 0.8f, 1.0f);
+	toPSShader.materialProperties.emissive = DirectX::XMFLOAT4(0.95f, 0.6f, 0.25f, 0.7f);
 	toPSShader.materialProperties.ambient = DirectX::XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
 	toPSShader.materialProperties.diffuse = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	toPSShader.materialProperties.specular = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
@@ -1321,7 +1332,7 @@ bool DEMO_APP::Run()
 	memcpy(ms.pData, &toGSShader, sizeof(toGSShader));
 	context->Unmap(cBufferGS, NULL);
 
-	context->DrawIndexedInstanced(7140, 2, 0, 0, 0);
+	context->DrawIndexed(7140, 0, 0);
 	//
 	// DRAW THE EARTH
 	//
@@ -1329,12 +1340,12 @@ bool DEMO_APP::Run()
 	context->PSSetShaderResources(2, 1, &diffuseViews[5]);
 
 	worldMatricies[6] = DirectX::XMMatrixTranslation(worldMatricies[5].r[3].m128_f32[0] + 0.0f, worldMatricies[5].r[3].m128_f32[1] + 0.0f, worldMatricies[5].r[3].m128_f32[2] + 0.0f);
-	worldMatricies[6] = DirectX::XMMatrixMultiply(DirectX::XMMatrixMultiply(DirectX::XMMatrixTranslation(250.0f, 0.0f, 0.0f), DirectX::XMMatrixRotationY(timer * 0.15f)), worldMatricies[6]);
+	worldMatricies[6] = DirectX::XMMatrixMultiply(DirectX::XMMatrixMultiply(DirectX::XMMatrixTranslation(100.0f, 0.0f, 0.0f), DirectX::XMMatrixRotationY(timer * 0.15f)), worldMatricies[6]);
 	worldMatricies[6] = DirectX::XMMatrixMultiply(DirectX::XMMatrixRotationY(timer * 0.3f), worldMatricies[6]);
-	worldMatricies[6] = DirectX::XMMatrixMultiply(DirectX::XMMatrixScaling(0.1f, 0.1f, 0.1f), worldMatricies[6]);
+	worldMatricies[6] = DirectX::XMMatrixMultiply(DirectX::XMMatrixScaling(0.03f, 0.03f, 0.03f), worldMatricies[6]);
 	toVSShader.worldMatrix = worldMatricies[6];
 
-	toPSShader.materialProperties.emissive = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+	toPSShader.materialProperties.emissive = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
 	toPSShader.materialProperties.ambient = DirectX::XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
 	toPSShader.materialProperties.diffuse = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	toPSShader.materialProperties.specular = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
@@ -1351,7 +1362,7 @@ bool DEMO_APP::Run()
 	memcpy(ms.pData, &toPSShader, sizeof(toPSShader));
 	context->Unmap(cBufferPS, NULL);
 
-	context->DrawIndexedInstanced(7140, 2, 0, 0, 0);
+	context->DrawIndexed(7140, 0, 0);
 	//
 	// DRAW THE MOON
 	//
@@ -1359,14 +1370,13 @@ bool DEMO_APP::Run()
 	context->PSSetShaderResources(2, 1, pSRV);
 	context->PSSetShaderResources(3, 1, &normMaps[0]);
 
-	//worldMatricies[7] = DirectX::XMMatrixTranslation(0.0f, 0.0f, 50.0f);
 	worldMatricies[7] = DirectX::XMMatrixTranslation(worldMatricies[6].r[3].m128_f32[0] + 0.0f, worldMatricies[6].r[3].m128_f32[1] + 0.0f, worldMatricies[6].r[3].m128_f32[2] + 0.0f);
-	worldMatricies[7] = DirectX::XMMatrixMultiply(DirectX::XMMatrixMultiply(DirectX::XMMatrixTranslation(-100.0f, 0.0f, 0.0f), DirectX::XMMatrixRotationY(timer * 0.7f)), worldMatricies[7]);
+	worldMatricies[7] = DirectX::XMMatrixMultiply(DirectX::XMMatrixMultiply(DirectX::XMMatrixTranslation(-25.0f, 0.0f, 0.0f), DirectX::XMMatrixRotationY(timer * 0.7f)), worldMatricies[7]);
 	worldMatricies[7] = DirectX::XMMatrixMultiply(DirectX::XMMatrixRotationY(timer * 0.65f), worldMatricies[7]);
-	worldMatricies[7] = DirectX::XMMatrixMultiply(DirectX::XMMatrixScaling(0.03f, 0.03f, 0.03f), worldMatricies[7]);
+	worldMatricies[7] = DirectX::XMMatrixMultiply(DirectX::XMMatrixScaling(0.01f, 0.01f, 0.01f), worldMatricies[7]);
 	toVSShader.worldMatrix = worldMatricies[7];
 
-	toPSShader.materialProperties.emissive = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+	toPSShader.materialProperties.emissive = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
 	toPSShader.materialProperties.ambient = DirectX::XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
 	toPSShader.materialProperties.diffuse = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	toPSShader.materialProperties.specular = DirectX::XMFLOAT4(0.3f, 0.3f, 0.3f, 1.0f);
@@ -1383,7 +1393,7 @@ bool DEMO_APP::Run()
 	memcpy(ms.pData, &toPSShader, sizeof(toPSShader));
 	context->Unmap(cBufferPS, NULL);
 
-	context->DrawIndexedInstanced(7140, 2, 0, 0, 0);
+	context->DrawIndexed(7140, 0, 0);
 	//
 	// DRAW SATILLITE
 	//
@@ -1393,12 +1403,12 @@ bool DEMO_APP::Run()
 	context->PSSetShaderResources(0, 1, &diffuseViews[10]);
 	context->PSSetShaderResources(3, 1, &normMaps[2]);
 	
-	worldMatricies[12] = DirectX::XMMatrixTranslation(5.0f, 2.0f, 0.0f);
+	worldMatricies[12] = DirectX::XMMatrixTranslation(5.0f, 4.0f, 0.0f);
 	worldMatricies[12] = DirectX::XMMatrixMultiply(DirectX::XMMatrixRotationX(DirectX::XMConvertToRadians(-195)), DirectX::XMMatrixMultiply(DirectX::XMMatrixRotationY(timer * 0.5f), worldMatricies[12]));
 	worldMatricies[12] = DirectX::XMMatrixMultiply(DirectX::XMMatrixScaling(0.1f, 0.1f, 0.1f), worldMatricies[12]);
 	toVSShader.worldMatrix = worldMatricies[12];
 	
-	toPSShader.materialProperties.emissive = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+	toPSShader.materialProperties.emissive = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
 	toPSShader.materialProperties.ambient = DirectX::XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
 	toPSShader.materialProperties.diffuse = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	toPSShader.materialProperties.specular = DirectX::XMFLOAT4(0.3f, 0.3f, 0.3f, 1.0f);
@@ -1415,7 +1425,7 @@ bool DEMO_APP::Run()
 	memcpy(ms.pData, &toPSShader, sizeof(toPSShader));
 	context->Unmap(cBufferPS, NULL);
 	
-	context->DrawIndexedInstanced(7236, 2, 0, 0, 0);
+	context->DrawIndexedInstanced(7236, 3, 0, 0, 0);
 	//
 	// DRAW EXAMPLE CUBE 1
 	//
@@ -1428,7 +1438,7 @@ bool DEMO_APP::Run()
 	worldMatricies[1] = DirectX::XMMatrixTranslation(-1.5f, 1.0f, 0.0f);
 	toVSShader.worldMatrix = worldMatricies[1];
 
-	toPSShader.materialProperties.emissive = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+	toPSShader.materialProperties.emissive = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
 	toPSShader.materialProperties.ambient = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	toPSShader.materialProperties.diffuse = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	toPSShader.materialProperties.specular = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
@@ -1445,16 +1455,14 @@ bool DEMO_APP::Run()
 	memcpy(ms.pData, &toPSShader, sizeof(toPSShader));
 	context->Unmap(cBufferPS, NULL);
 
-	context->DrawIndexedInstanced(36, 2, 0, 0, 0);
+	context->DrawIndexed(36, 0, 0);
 	//
 	// DRAW EXAMPLE CUBE 2
 	//
 	worldMatricies[10] = DirectX::XMMatrixTranslation(-1.0f, 1.0f, 0.0f);
 	toVSShader.worldMatrix = worldMatricies[10];
 
-	//context->PSSetShaderResources(3, 1, &normMaps[1]);
-
-	toPSShader.materialProperties.emissive = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
+	toPSShader.materialProperties.emissive = DirectX::XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
 	toPSShader.materialProperties.ambient = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	toPSShader.materialProperties.diffuse = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	toPSShader.materialProperties.specular = DirectX::XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
@@ -1471,7 +1479,7 @@ bool DEMO_APP::Run()
 	memcpy(ms.pData, &toPSShader, sizeof(toPSShader));
 	context->Unmap(cBufferPS, NULL);
 
-	context->DrawIndexedInstanced(36, 2, 0, 0, 0);
+	context->DrawIndexed(36, 0, 0);
 	//
 	// DRAW STONEHENGE ONTO A TEXTURE TO BE RENDERED
 	//
@@ -1527,7 +1535,6 @@ bool DEMO_APP::ShutDown()
 {	
 	swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)&backBuffer);
 	backBuffer->Release();
-	//device->Release();
 	swapChain->Release();
 	depthBuffer->Release();
 	rtv->Release();

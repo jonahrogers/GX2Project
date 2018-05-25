@@ -71,11 +71,6 @@ float4 main(OUTPUT_GEOMETRY vertex) : SV_TARGET
 	float4 totalDiffuse = 0;
 	float4 totalSpecular = 0;
 
-	//uint width = 0;
-	//uint height = 0;
-
-	//otherTexture.GetDimensions(width, height);
-
 	if (hasSecondTexture == 0)
 	{
 		color = baseTexture.Sample(baseFilter, vertex.texOut);
@@ -166,12 +161,12 @@ float4 main(OUTPUT_GEOMETRY vertex) : SV_TARGET
 			}
 		}
 
-		totalEmissive = materialProperties.emissive;
+		totalEmissive = float4(materialProperties.emissive.x * materialProperties.emissive.w, materialProperties.emissive.y * materialProperties.emissive.w, materialProperties.emissive.z * materialProperties.emissive.w, materialProperties.emissive.w);
 		totalAmbient = materialProperties.ambient * globalAmbientColor;
 		totalDiffuse = materialProperties.diffuse * totalDiffuse;
 		totalSpecular = materialProperties.specular * totalSpecular;
 
-		color = (/*totalEmissive + totalAmbient*/ + totalDiffuse /*+ totalSpecular*/) * color;
+		color = (totalEmissive + totalAmbient + totalDiffuse + totalSpecular) * color;
 
 		color = saturate(color);
 

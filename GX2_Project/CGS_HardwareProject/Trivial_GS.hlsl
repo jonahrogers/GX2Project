@@ -8,8 +8,6 @@ struct OUTPUT_VERTEX
 	float4 worldPos : POSITION;
 
 	float3 tangent : TANGENT;
-
-	uint instanceId : SV_INSTANCEID;
 };
 
 struct OUTPUT_GEOMETRY
@@ -35,65 +33,122 @@ cbuffer SECOND_VIEWMATRIX : register(b4)
 {
 	float4x4 second_viewMatrix;
 
-	float isBarrels;
+	int isBarrels;
+	int splitScreenEnabled;
 
-	float3 padding;
+	float2 padding;
 }
 
-[maxvertexcount(3)]
+[maxvertexcount(33)]
+
 void main(triangle OUTPUT_VERTEX input[3], inout TriangleStream<OUTPUT_GEOMETRY> OutputStream)
 {
 	OUTPUT_GEOMETRY output = (OUTPUT_GEOMETRY)0;
 
-	for (int i = 0; i < 3; ++i)
+	int numOfViewPorts = 0;
+
+	if (!isBarrels)
 	{
-		output.projectedCoordinate = input[i].projectedCoordinate;
-		output.normal = input[i].normal;
-		output.texOut = input[i].texOut;
-		output.worldPos = input[i].worldPos;
-		output.tangent = input[i].tangent;
-
-		if (input[i].instanceId == 0)
-		{
-			output.projectedCoordinate = mul(output.worldPos, viewMatrix);
-			output.projectedCoordinate = mul(output.projectedCoordinate, projectionMatrix);
-
-			output.viewPort = 0;
-		}
-		else if (input[i].instanceId == 1)
-		{
-			output.projectedCoordinate = mul(output.worldPos, second_viewMatrix);
-			output.projectedCoordinate = mul(output.projectedCoordinate, projectionMatrix);
-
-			output.viewPort = 1;
-		}
+		if (splitScreenEnabled)
+			numOfViewPorts = 2;
 		else
+			numOfViewPorts = 1;
+
+		for (int i = 0; i < numOfViewPorts; ++i)
 		{
-			if (isBarrels)
+			for (int j = 0; j < 3; ++j)
 			{
-				if ((input[i].instanceId - 1) % 2 == 0)
+				output.projectedCoordinate = input[j].projectedCoordinate;
+				output.normal = input[j].normal;
+				output.texOut = input[j].texOut;
+				output.worldPos = input[j].worldPos;
+				output.tangent = input[j].tangent;
+
+				if (i == 1)
 				{
-					output.worldPos.z -= (input[i].instanceId - 1) / 2;
-
-					output.projectedCoordinate = mul(output.worldPos, viewMatrix);
-					output.projectedCoordinate = mul(output.projectedCoordinate, projectionMatrix);
-
-					output.viewPort = 0;
-				}
-				else if ((input[i].instanceId - 1) % 2 == 1)
-				{
-					output.worldPos.z -= ((input[i].instanceId - 1) - 1) / 2;
-
-					output.worldPos.x -= 1;
-
 					output.projectedCoordinate = mul(output.worldPos, second_viewMatrix);
 					output.projectedCoordinate = mul(output.projectedCoordinate, projectionMatrix);
+				}
 
-					output.viewPort = 1;
+				output.viewPort = i;
+
+				OutputStream.Append(output);
+			}
+
+		OutputStream.RestartStrip();
+		}
+	}
+	else
+	{
+		for (int i = 0; i < 10; ++i)
+		{
+			if (i < 1)
+			{
+				if (splitScreenEnabled)
+					numOfViewPorts = 2;
+				else
+					numOfViewPorts = 1;
+	
+				for (int k = 0; k < numOfViewPorts; ++k)
+				{
+					for (int j = 0; j < 3; ++j)
+					{
+						output.projectedCoordinate = input[j].projectedCoordinate;
+						output.normal = input[j].normal;
+						output.texOut = input[j].texOut;
+						output.worldPos = input[j].worldPos;
+						output.tangent = input[j].tangent;
+	
+						if (k == 1)
+						{
+							output.projectedCoordinate = mul(output.worldPos, second_viewMatrix);
+							output.projectedCoordinate = mul(output.projectedCoordinate, projectionMatrix);
+						}
+	
+						output.viewPort = k;
+	
+						OutputStream.Append(output);
+					}
+					
+					OutputStream.RestartStrip();
 				}
 			}
-		}
+			else
+			{
+				for (int j = 0; j < 3; ++j)
+				{
+					output.projectedCoordinate = input[j].projectedCoordinate;
+					output.normal = input[j].normal;
+					output.texOut = input[j].texOut;
+					output.worldPos = input[j].worldPos;
+					output.tangent = input[j].tangent;
 
-		OutputStream.Append(output);
+					if (i % 2 == 0)
+					{
+						output.worldPos.z -= i / 2;
+
+						output.projectedCoordinate = mul(output.worldPos, viewMatrix);
+						output.projectedCoordinate = mul(output.projectedCoordinate, projectionMatrix);
+
+						output.viewPort = 0;
+					}
+					else if (i % 2 == 1 && splitScreenEnabled)
+					{
+						output.worldPos.z -= (i - 1) / 2;
+
+						output.worldPos.x -= 1;
+
+						output.projectedCoordinate = mul(output.worldPos, second_viewMatrix);
+						output.projectedCoordinate = mul(output.projectedCoordinate, projectionMatrix);
+
+						output.viewPort = 1;
+					}
+
+					OutputStream.Append(output);
+				}
+
+				OutputStream.RestartStrip();
+			}
+		}
 	}
 }

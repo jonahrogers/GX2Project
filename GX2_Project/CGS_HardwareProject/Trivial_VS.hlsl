@@ -19,8 +19,6 @@ struct OUTPUT_VERTEX
 	float4 worldPos : POSITION;
 
 	float3 tangent : TANGENT;
-
-	uint instanceId : SV_INSTANCEID;
 };
 
 cbuffer THIS_IS_VRAM : register(b0)
@@ -36,6 +34,8 @@ OUTPUT_VERTEX main(INPUT_VERTEX fromVertexBuffer)
 
 	sendToRasterizer.worldPos = mul(float4(fromVertexBuffer.coordinate, 1), worldMatrix);
 
+	sendToRasterizer.worldPos.y -= fromVertexBuffer.instanceId * 2;
+
 	sendToRasterizer.projectedCoordinate = mul(sendToRasterizer.worldPos, viewMatrix);
 	sendToRasterizer.projectedCoordinate = mul(sendToRasterizer.projectedCoordinate, projectionMatrix);
 	
@@ -45,8 +45,6 @@ OUTPUT_VERTEX main(INPUT_VERTEX fromVertexBuffer)
 	sendToRasterizer.texOut = fromVertexBuffer.tex;
 
 	sendToRasterizer.tangent = fromVertexBuffer.tangent;
-
-	sendToRasterizer.instanceId = fromVertexBuffer.instanceId;
 
 	return sendToRasterizer;
 }
